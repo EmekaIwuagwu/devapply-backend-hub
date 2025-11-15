@@ -229,7 +229,7 @@ def github_login():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_profile():
-    """Get current user profile"""
+    """Get current user profile with subscription info"""
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -237,7 +237,16 @@ def get_profile():
         if not user:
             return error_response('USER_NOT_FOUND', 'User not found', status_code=404)
 
-        return create_response(data={'user': user.to_dict()})
+        # Get user's active subscription
+        subscription = Subscription.query.filter_by(
+            user_id=user_id,
+            status='active'
+        ).first()
+
+        return create_response(data={
+            'user': user.to_dict(),
+            'subscription': subscription.to_dict() if subscription else None
+        })
 
     except Exception as e:
         return error_response('FETCH_FAILED', str(e), status_code=500)
