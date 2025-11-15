@@ -148,26 +148,41 @@ def scrape_jobs_for_user(user_id):
 
 def scrape_platform(platform, config):
     """
-    Scrape jobs from a specific platform
-    TODO: Implement platform-specific scrapers
-
-    For now, returns mock data structure that real scrapers should follow
+    Scrape jobs from a specific platform using real scrapers
     """
-    # Import platform-specific scraper
-    # from app.scrapers.linkedin_scraper import LinkedInScraper
-    # from app.scrapers.indeed_scraper import IndeedScraper
+    import os
+    from app.scrapers.linkedin_scraper import LinkedInScraper
+    from app.scrapers.indeed_scraper import IndeedScraper
 
-    # Example implementation:
-    # if platform.lower() == 'linkedin':
-    #     scraper = LinkedInScraper()
-    #     return scraper.scrape(
-    #         job_title=config.primary_job_title,
-    #         location=config.primary_location,
-    #         keywords=config.primary_keywords
-    #     )
+    try:
+        proxy_url = os.getenv('PROXY_SERVICE_URL')
+        proxy_key = os.getenv('PROXY_SERVICE_KEY')
 
-    # Mock response structure for now
-    return []
+        platform_lower = platform.lower()
+
+        if platform_lower == 'linkedin':
+            scraper = LinkedInScraper(proxy_url, proxy_key)
+            return scraper.scrape(
+                job_title=config.primary_job_title or '',
+                location=config.primary_location or '',
+                keywords=config.primary_keywords or []
+            )
+
+        elif platform_lower == 'indeed':
+            scraper = IndeedScraper(proxy_url, proxy_key)
+            return scraper.scrape(
+                job_title=config.primary_job_title or '',
+                location=config.primary_location or '',
+                keywords=config.primary_keywords or []
+            )
+
+        else:
+            print(f"No scraper implemented for platform: {platform}")
+            return []
+
+    except Exception as e:
+        print(f"Error scraping {platform}: {str(e)}")
+        return []
 
 
 def create_or_update_job_listing(job_data):

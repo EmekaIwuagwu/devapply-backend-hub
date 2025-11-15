@@ -2,7 +2,8 @@ import os
 from app import create_app, db
 from app.models import (
     User, Resume, Platform, JobSearchConfig, Application,
-    Subscription, Payment, JobQueue, JobListing, AutomationLog
+    Subscription, Payment, JobQueue, JobListing, AutomationLog,
+    PlatformCredential
 )
 
 # Create Flask app
@@ -23,7 +24,8 @@ def make_shell_context():
         'Payment': Payment,
         'JobQueue': JobQueue,
         'JobListing': JobListing,
-        'AutomationLog': AutomationLog
+        'AutomationLog': AutomationLog,
+        'PlatformCredential': PlatformCredential
     }
 
 

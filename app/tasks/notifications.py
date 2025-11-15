@@ -75,20 +75,17 @@ def send_daily_summary(user_id):
             'updates': [app.to_dict() for app in status_updates[:5]]
         }
 
-        # TODO: Send actual email
-        # send_email(
-        #     to=user.email,
-        #     subject=f"DevApply Daily Summary - {apps_yesterday} Applications",
-        #     template='daily_summary',
-        #     context=summary
-        # )
+        # Send actual email
+        from app.utils.email_service import email_service
 
-        print(f"[EMAIL] Daily summary for {user.email}:")
-        print(f"  - {len(apps_yesterday)} applications submitted")
-        print(f"  - {pending_jobs} pending in queue")
-        print(f"  - {len(status_updates)} status updates")
+        email_sent = email_service.send_daily_summary(user.email, summary)
 
-        return f"Sent daily summary to {user.email}"
+        if email_sent:
+            print(f"[EMAIL] Daily summary sent to {user.email}")
+            return f"Sent daily summary to {user.email}"
+        else:
+            print(f"[EMAIL] Failed to send daily summary to {user.email}")
+            return f"Failed to send daily summary to {user.email}"
 
     except Exception as e:
         return f"Error sending daily summary: {str(e)}"
@@ -106,12 +103,17 @@ def send_status_update_email(user_id, application_id):
         if not user or not application:
             return "User or application not found"
 
-        # TODO: Send actual email
-        print(f"[EMAIL] Status update for {user.email}:")
-        print(f"  Application to {application.company_name} - {application.job_title}")
-        print(f"  New status: {application.status}")
+        # Send actual email
+        from app.utils.email_service import email_service
 
-        return f"Sent status update email to {user.email}"
+        email_sent = email_service.send_status_update(user.email, application.to_dict())
+
+        if email_sent:
+            print(f"[EMAIL] Status update sent to {user.email}")
+            return f"Sent status update email to {user.email}"
+        else:
+            print(f"[EMAIL] Failed to send status update to {user.email}")
+            return f"Failed to send status update to {user.email}"
 
     except Exception as e:
         return f"Error sending status update: {str(e)}"

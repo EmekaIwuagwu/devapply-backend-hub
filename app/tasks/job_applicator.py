@@ -227,34 +227,48 @@ def get_user_resume(user_id, job_search_config_id=None):
 
 def apply_to_platform(platform, job_url, user, resume):
     """
-    Apply to job on specific platform
-    TODO: Implement platform-specific automation
+    Apply to job on specific platform using real automation bots
 
     Returns: (success: bool, message: str)
     """
-    # Import platform-specific bots
-    # from app.automation.linkedin_bot import LinkedInBot
-    # from app.automation.indeed_bot import IndeedBot
+    from app.automation.linkedin_bot import LinkedInBot
+    from app.automation.indeed_bot import IndeedBot
+    from app.models.platform_credential import PlatformCredential
 
-    # Example implementation:
-    # if platform.lower() == 'linkedin':
-    #     bot = LinkedInBot(user_profile=user.to_dict(), resume_base64=resume.file_base64)
-    #     return bot.apply_to_job(job_url)
-    # elif platform.lower() == 'indeed':
-    #     bot = IndeedBot(user_profile=user.to_dict(), resume_base64=resume.file_base64)
-    #     return bot.apply_to_job(job_url)
+    try:
+        # Get platform credentials
+        credential = PlatformCredential.query.filter_by(
+            user_id=user.id,
+            platform=platform.lower()
+        ).first()
 
-    # For now, simulate application
-    print(f"[SIMULATION] Applying to {platform} job at {job_url}")
-    print(f"User: {user.email}, Resume: {resume.filename}")
+        # Prepare user profile with credentials
+        user_profile = user.to_dict()
 
-    # In production, this would:
-    # 1. Initialize headless browser (Selenium/Playwright)
-    # 2. Navigate to job URL
-    # 3. Fill application form
-    # 4. Upload resume (convert from base64)
-    # 5. Submit application
-    # 6. Handle confirmation
+        if credential:
+            # Add platform credentials to user profile
+            if platform.lower() == 'linkedin':
+                user_profile['linkedin_email'] = credential.username
+                user_profile['linkedin_password'] = credential.get_password()
+            elif platform.lower() == 'indeed':
+                user_profile['indeed_email'] = credential.username
+                user_profile['indeed_password'] = credential.get_password()
+        else:
+            return False, f"No credentials found for {platform}. Please add credentials first."
 
-    # Simulate success for now
-    return True, "Application submitted successfully (simulated)"
+        platform_lower = platform.lower()
+
+        if platform_lower == 'linkedin':
+            bot = LinkedInBot(user_profile=user_profile, resume_base64=resume.file_base64)
+            return bot.apply_to_job(job_url)
+
+        elif platform_lower == 'indeed':
+            bot = IndeedBot(user_profile=user_profile, resume_base64=resume.file_base64)
+            return bot.apply_to_job(job_url)
+
+        else:
+            return False, f"No automation bot implemented for platform: {platform}"
+
+    except Exception as e:
+        print(f"[Automation] Error applying to {platform}: {str(e)}")
+        return False, f"Automation error: {str(e)}"

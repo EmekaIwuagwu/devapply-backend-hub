@@ -66,6 +66,7 @@ def register_blueprints(app):
     from app.routes.subscription import subscription_bp
     from app.routes.platforms import platforms_bp
     from app.routes.automation import automation_bp
+    from app.routes.credentials import credentials_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/resumes')
@@ -74,6 +75,7 @@ def register_blueprints(app):
     app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
     app.register_blueprint(platforms_bp, url_prefix='/api/platforms')
     app.register_blueprint(automation_bp, url_prefix='/api/automation')
+    app.register_blueprint(credentials_bp, url_prefix='/api/credentials')
 
 
 def register_error_handlers(app):
