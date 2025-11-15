@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     linkedin_url VARCHAR(500),
     github_url VARCHAR(500),
     portfolio_url VARCHAR(500),
-    current_role VARCHAR(255),
+    "current_role" VARCHAR(255),
     years_experience INTEGER,
     preferred_job_type VARCHAR(50),
     salary_expectations VARCHAR(100),
