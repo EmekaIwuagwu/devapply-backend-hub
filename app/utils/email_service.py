@@ -98,6 +98,24 @@ class EmailService:
 
         return self.send_email(user_email, subject, html_content)
 
+    def send_password_reset(self, user_email, data):
+        """Send password reset email"""
+        subject = "DevApply - Password Reset Request"
+        html_content = self._render_template('password_reset', data)
+        return self.send_email(user_email, subject, html_content)
+
+    def send_email_verification(self, user_email, data):
+        """Send email verification email"""
+        subject = "DevApply - Verify Your Email Address"
+        html_content = self._render_template('email_verification', data)
+        return self.send_email(user_email, subject, html_content)
+
+    def send_account_deleted(self, user_email, data):
+        """Send account deletion confirmation email"""
+        subject = "DevApply - Account Deleted"
+        html_content = self._render_template('account_deleted', data)
+        return self.send_email(user_email, subject, html_content)
+
     def _render_template(self, template_name, data):
         """Render email template"""
         # Template mapping
@@ -105,7 +123,10 @@ class EmailService:
             'daily_summary': DAILY_SUMMARY_TEMPLATE,
             'status_update': STATUS_UPDATE_TEMPLATE,
             'welcome': WELCOME_TEMPLATE,
-            'application_limit': APPLICATION_LIMIT_TEMPLATE
+            'application_limit': APPLICATION_LIMIT_TEMPLATE,
+            'password_reset': PASSWORD_RESET_TEMPLATE,
+            'email_verification': EMAIL_VERIFICATION_TEMPLATE,
+            'account_deleted': ACCOUNT_DELETED_TEMPLATE
         }
 
         template_str = templates.get(template_name, '')
@@ -306,6 +327,150 @@ APPLICATION_LIMIT_TEMPLATE = """
             <p>To continue applying to jobs automatically, consider upgrading your plan.</p>
 
             <p><a href="#" class="upgrade-button">Upgrade Plan</a></p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+# Create singleton instance
+email_service = EmailService()
+
+PASSWORD_RESET_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #2563eb; color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; background: #f9fafb; }
+        .reset-button { display: inline-block; padding: 15px 40px; background: #2563eb; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .token-box { background: #fff; padding: 15px; margin: 20px 0; border: 2px dashed #2563eb; text-align: center; font-family: monospace; font-size: 18px; }
+        .warning { background: #fef3c7; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Password Reset Request</h1>
+        </div>
+
+        <div class="content">
+            <h2>Hi {{ user_name }},</h2>
+
+            <p>We received a request to reset your DevApply account password.</p>
+
+            <p>Click the button below to reset your password:</p>
+
+            <p style="text-align: center;">
+                <a href="{{ reset_url }}" class="reset-button">Reset Password</a>
+            </p>
+
+            <p>Or copy and paste this link into your browser:</p>
+            <div class="token-box">{{ reset_url }}</div>
+
+            <div class="warning">
+                <strong>⚠️ Security Notice:</strong><br>
+                This link will expire in 1 hour.<br>
+                If you didn't request this password reset, please ignore this email.
+            </div>
+
+            <p>For security reasons, we never send passwords via email.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+EMAIL_VERIFICATION_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #10b981; color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; background: #f9fafb; }
+        .verify-button { display: inline-block; padding: 15px 40px; background: #10b981; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .token-box { background: #fff; padding: 15px; margin: 20px 0; border: 2px dashed #10b981; text-align: center; font-family: monospace; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✉️ Verify Your Email</h1>
+        </div>
+
+        <div class="content">
+            <h2>Hi {{ user_name }},</h2>
+
+            <p>Thank you for signing up for DevApply! We're excited to have you on board.</p>
+
+            <p>To complete your registration and start automating your job applications, please verify your email address:</p>
+
+            <p style="text-align: center;">
+                <a href="{{ verification_url }}" class="verify-button">Verify Email Address</a>
+            </p>
+
+            <p>Or copy and paste this link into your browser:</p>
+            <div class="token-box">{{ verification_url }}</div>
+
+            <p><strong>Why verify?</strong></p>
+            <ul>
+                <li>Receive important notifications about your applications</li>
+                <li>Get daily summaries of your job search activity</li>
+                <li>Recover your account if you forget your password</li>
+                <li>Access all premium features</li>
+            </ul>
+
+            <p>This link will expire in 24 hours.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+ACCOUNT_DELETED_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #6b7280; color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; background: #f9fafb; }
+        .info-box { background: #e0e7ff; padding: 15px; margin: 20px 0; border-left: 4px solid #4f46e5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Deleted</h1>
+        </div>
+
+        <div class="content">
+            <h2>Goodbye {{ user_name }},</h2>
+
+            <p>Your DevApply account has been successfully deleted as requested.</p>
+
+            <div class="info-box">
+                <strong>What's been deleted:</strong><br>
+                • Your profile and personal information<br>
+                • All resumes and documents<br>
+                • Job search configurations<br>
+                • Application history<br>
+                • Platform credentials<br>
+                • Subscription and billing data
+            </div>
+
+            <p>All your data has been permanently removed from our systems.</p>
+
+            <p>If you deleted your account by mistake, you can create a new account anytime at devapply.com</p>
+
+            <p>We're sorry to see you go! If you have any feedback about why you left, we'd love to hear from you.</p>
+
+            <p>Thank you for using DevApply!</p>
         </div>
     </div>
 </body>

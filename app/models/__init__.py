@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.user_preferences import UserPreferences
 from app.models.resume import Resume
 from app.models.platform import Platform
 from app.models.job_search_config import JobSearchConfig
@@ -11,6 +12,7 @@ from app.models.platform_credential import PlatformCredential
 
 __all__ = [
     'User',
+    'UserPreferences',
     'Resume',
     'Platform',
     'JobSearchConfig',
