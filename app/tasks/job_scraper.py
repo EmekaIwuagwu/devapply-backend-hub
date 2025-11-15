@@ -130,7 +130,7 @@ def scrape_jobs_for_user(user_id):
             action_type='job_search',
             status='success',
             message=f"Found {total_jobs_found} jobs, queued {total_queued} for application",
-            metadata={'platforms': platforms}
+            details={'platforms': platforms}
         )
 
         return f"Scraped {total_jobs_found} jobs, queued {total_queued} for user {user_id}"
@@ -235,7 +235,7 @@ def calculate_priority(match_score):
         return 5
 
 
-def log_automation_event(user_id, action_type, status, message, metadata=None, job_queue_id=None):
+def log_automation_event(user_id, action_type, status, message, details=None, job_queue_id=None):
     """Log automation event"""
     try:
         log = AutomationLog(
@@ -244,7 +244,7 @@ def log_automation_event(user_id, action_type, status, message, metadata=None, j
             action_type=action_type,
             status=status,
             message=message,
-            metadata=metadata or {}
+            details=details or {}
         )
         db.session.add(log)
         db.session.commit()

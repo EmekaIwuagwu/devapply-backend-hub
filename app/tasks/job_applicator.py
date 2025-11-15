@@ -142,7 +142,7 @@ def apply_to_job(self, job_queue_id):
                 action_type='job_apply',
                 status='success',
                 message=f"Successfully applied to {queue_item.company_name} - {queue_item.job_title}",
-                metadata={'platform': queue_item.platform}
+                details={'platform': queue_item.platform}
             )
             db.session.add(log)
 
@@ -169,7 +169,7 @@ def apply_to_job(self, job_queue_id):
                 action_type='job_apply',
                 status='failed',
                 message=f"Failed to apply: {message}",
-                metadata={'platform': queue_item.platform, 'retry_count': queue_item.retry_count}
+                details={'platform': queue_item.platform, 'retry_count': queue_item.retry_count}
             )
             db.session.add(log)
 

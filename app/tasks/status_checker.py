@@ -63,7 +63,7 @@ def check_application_status(application_id):
                 action_type='status_update',
                 status='success',
                 message=f"Application status changed from {old_status} to {new_status}",
-                metadata={
+                details={
                     'application_id': application.id,
                     'company': application.company_name,
                     'job_title': application.job_title
