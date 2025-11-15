@@ -13,7 +13,7 @@ class AutomationLog(db.Model):
     action_type = db.Column(db.String(50), nullable=False, index=True)  # job_search, job_apply, status_update
     status = db.Column(db.String(20), nullable=False)  # success, failed, warning
     message = db.Column(db.Text, nullable=False)
-    metadata = db.Column(db.JSON, default=dict)  # Additional details
+    details = db.Column(db.JSON, default=dict)  # Additional details (renamed from metadata)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     def to_dict(self):
@@ -25,7 +25,7 @@ class AutomationLog(db.Model):
             'action_type': self.action_type,
             'status': self.status,
             'message': self.message,
-            'metadata': self.metadata or {},
+            'details': self.details or {},
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
