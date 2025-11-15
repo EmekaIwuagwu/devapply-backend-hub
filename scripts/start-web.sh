@@ -36,9 +36,12 @@ else:
     exit(1)
 END
 
-# Run database migrations
+# Run database migrations using Python script
 echo "Running database migrations..."
-flask db upgrade || echo "Migrations failed or already up to date"
+python scripts/run_migrations.py || {
+    echo "Python migration script failed, trying direct flask command..."
+    flask db upgrade || echo "Migrations failed or already up to date"
+}
 
 # Seed platforms if needed
 echo "Seeding platforms..."
