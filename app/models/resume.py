@@ -35,8 +35,23 @@ class Resume(db.Model):
             'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None
         }
         if include_file:
-            data['file_base64'] = self.file_base64
+            # Format base64 as data URL for frontend display
+            mime_type = self._get_mime_type()
+            # Check if base64 already has data URL prefix
+            if self.file_base64.startswith('data:'):
+                data['file_url'] = self.file_base64
+            else:
+                data['file_url'] = f"data:{mime_type};base64,{self.file_base64}"
         return data
+
+    def _get_mime_type(self):
+        """Get MIME type based on file type"""
+        mime_types = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        return mime_types.get(self.file_type, 'application/octet-stream')
 
     def __repr__(self):
         return f'<Resume {self.filename}>'

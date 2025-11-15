@@ -94,7 +94,7 @@ def get_resumes():
 @resumes_bp.route('/<resume_id>', methods=['GET'])
 @jwt_required()
 def get_resume(resume_id):
-    """Get a specific resume"""
+    """Get a specific resume with file content"""
     try:
         user_id = get_jwt_identity()
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
@@ -102,7 +102,8 @@ def get_resume(resume_id):
         if not resume:
             return error_response('RESUME_NOT_FOUND', 'Resume not found', status_code=404)
 
-        return create_response(data={'resume': resume.to_dict(include_file=False)})
+        # Include file content for preview/download
+        return create_response(data={'resume': resume.to_dict(include_file=True)})
 
     except Exception as e:
         return error_response('FETCH_FAILED', str(e), status_code=500)
