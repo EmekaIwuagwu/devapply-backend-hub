@@ -35,7 +35,15 @@ def create_app(config_name=None):
     jwt.init_app(app)
     ma.init_app(app)
     limiter.init_app(app)
-    CORS(app, origins=app.config['CORS_ORIGINS'])
+
+    # Configure CORS with comprehensive settings for frontend integration
+    CORS(app,
+         origins=app.config['CORS_ORIGINS'],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+         expose_headers=['Content-Type', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+    )
 
     # Register error handlers
     register_error_handlers(app)
