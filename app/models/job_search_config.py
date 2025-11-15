@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import ARRAY
 from app import db
 
 
@@ -9,14 +10,14 @@ class JobSearchConfig(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
-    platforms = db.Column(db.JSON, default=list)  # Array of platform slugs/IDs
+    platforms = db.Column(ARRAY(db.String), default=list)  # Array of platform slugs/IDs
 
     # Primary job search configuration
     primary_job_title = db.Column(db.String(255))
     primary_location = db.Column(db.String(255))
     primary_min_salary = db.Column(db.Integer)
     primary_experience_level = db.Column(db.String(50))
-    primary_keywords = db.Column(db.JSON, default=list)
+    primary_keywords = db.Column(ARRAY(db.String), default=list)
     primary_resume_id = db.Column(db.String(36), db.ForeignKey('resumes.id'))
 
     # Secondary job search configuration
@@ -24,7 +25,7 @@ class JobSearchConfig(db.Model):
     secondary_location = db.Column(db.String(255))
     secondary_min_salary = db.Column(db.Integer)
     secondary_experience_level = db.Column(db.String(50))
-    secondary_keywords = db.Column(db.JSON, default=list)
+    secondary_keywords = db.Column(ARRAY(db.String), default=list)
     secondary_resume_id = db.Column(db.String(36), db.ForeignKey('resumes.id'))
 
     is_active = db.Column(db.Boolean, default=True)
