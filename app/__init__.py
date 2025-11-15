@@ -65,6 +65,7 @@ def register_blueprints(app):
     from app.routes.search_config import search_config_bp
     from app.routes.subscription import subscription_bp
     from app.routes.platforms import platforms_bp
+    from app.routes.automation import automation_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/resumes')
@@ -72,6 +73,7 @@ def register_blueprints(app):
     app.register_blueprint(search_config_bp, url_prefix='/api/search-config')
     app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
     app.register_blueprint(platforms_bp, url_prefix='/api/platforms')
+    app.register_blueprint(automation_bp, url_prefix='/api/automation')
 
 
 def register_error_handlers(app):
