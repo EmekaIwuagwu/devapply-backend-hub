@@ -1,8 +1,10 @@
 # DevApply Backend API
 
-AI-powered job application automation platform backend built with Flask, PostgreSQL, and JWT authentication.
+AI-powered job application automation platform backend built with Flask, PostgreSQL, Celery, and JWT authentication.
 
 ## Features
+
+### Core Features
 
 - **User Authentication & Management**
   - Email/password registration and login
@@ -34,8 +36,44 @@ AI-powered job application automation platform backend built with Flask, Postgre
   - Payment history tracking
   - Application limits based on plan
 
+### Automation Features
+
+- **Background Job Processing**
+  - Celery-based task queue with Redis broker
+  - Automated job scraping every 6 hours
+  - Automated application submission every 30 minutes
+  - Daily email summaries at 8 AM
+  - Status monitoring and cleanup tasks
+
+- **AI-Powered Job Matching**
+  - TF-IDF based job matching algorithm
+  - Weighted scoring (keywords 40%, location 20%, salary 20%, etc.)
+  - Automatic filtering of duplicate jobs
+  - Match score calculation (0-100)
+
+- **Web Scraping**
+  - LinkedIn job scraper (Selenium-based for dynamic content)
+  - Indeed job scraper (BeautifulSoup-based for speed)
+  - Proxy support for reliable scraping
+  - Job listing deduplication
+
+- **Browser Automation**
+  - LinkedIn Easy Apply bot
+  - Indeed application bot
+  - Multi-step form handling
+  - Secure credential storage with Fernet encryption
+  - Rate limiting to avoid detection
+
+- **Email Notifications**
+  - Daily application summaries
+  - Status update alerts
+  - Welcome emails
+  - Application limit warnings
+  - SMTP-based with HTML templates
+
 ## Tech Stack
 
+### Core Backend
 - **Framework**: Flask 3.0
 - **Database**: PostgreSQL
 - **ORM**: SQLAlchemy 2.0
@@ -45,89 +83,197 @@ AI-powered job application automation platform backend built with Flask, Postgre
 - **CORS**: Flask-CORS
 - **Rate Limiting**: Flask-Limiter
 
+### Background Processing
+- **Task Queue**: Celery 5.3.4
+- **Message Broker**: Redis 5.0
+- **Task Scheduler**: Celery Beat
+- **Monitoring**: Flower (optional)
+
+### Automation & Scraping
+- **Browser Automation**: Selenium 4.15.2
+- **Web Scraping**: BeautifulSoup4 4.12.2, lxml 4.9.3
+- **HTTP Client**: Requests 2.31.0
+- **Headless Browser**: Chrome/Chromium (via Selenium)
+
+### AI & Matching
+- **NLP**: Scikit-learn 1.3.2 (TF-IDF)
+- **Numerical Computing**: NumPy 1.26.2
+
+### Security & Utilities
+- **Encryption**: Cryptography 41.0.7 (Fernet)
+- **Email**: SMTP with Jinja2 templates
+- **Date/Time**: python-dateutil, pytz
+
 ## Project Structure
 
 ```
 devapply-backend/
 ├── app/
-│   ├── __init__.py           # App factory and configuration
-│   ├── config.py             # Configuration settings
-│   ├── models/               # Database models
-│   │   ├── user.py
-│   │   ├── resume.py
-│   │   ├── application.py
-│   │   ├── job_search_config.py
-│   │   ├── subscription.py
-│   │   └── platform.py
-│   ├── routes/               # API endpoints
-│   │   ├── auth.py
-│   │   ├── resumes.py
-│   │   ├── applications.py
-│   │   ├── search_config.py
-│   │   ├── subscription.py
-│   │   └── platforms.py
-│   ├── utils/                # Utility functions
-│   │   ├── validators.py
-│   │   ├── auth_utils.py
-│   │   └── file_utils.py
-│   └── middleware/           # Custom middleware
-│       └── auth_middleware.py
-├── migrations/               # Database migrations
-├── run.py                    # Application entry point
-├── requirements.txt          # Python dependencies
-├── Procfile                  # Deployment configuration
-└── .env                      # Environment variables
+│   ├── __init__.py              # App factory and configuration
+│   ├── config.py                # Configuration settings
+│   ├── celery_config.py         # Celery configuration & Beat schedule
+│   ├── models/                  # Database models
+│   │   ├── user.py              # User accounts
+│   │   ├── resume.py            # Resume storage
+│   │   ├── application.py       # Application tracking
+│   │   ├── job_search_config.py # Job search preferences
+│   │   ├── subscription.py      # Subscription plans
+│   │   ├── platform.py          # Job platforms
+│   │   ├── platform_credential.py # Encrypted credentials
+│   │   ├── job_queue.py         # Application queue
+│   │   ├── job_listing.py       # Discovered jobs
+│   │   └── automation_log.py    # Audit trail
+│   ├── routes/                  # API endpoints
+│   │   ├── auth.py              # Authentication
+│   │   ├── resumes.py           # Resume management
+│   │   ├── applications.py      # Application tracking
+│   │   ├── search_config.py     # Job search config
+│   │   ├── subscription.py      # Billing & plans
+│   │   ├── platforms.py         # Job platforms
+│   │   ├── credentials.py       # Platform credentials
+│   │   └── automation.py        # Automation control
+│   ├── tasks/                   # Celery background tasks
+│   │   ├── job_scraper.py       # Job scraping tasks
+│   │   ├── job_applicator.py    # Application tasks
+│   │   ├── status_checker.py    # Status monitoring
+│   │   ├── notifications.py     # Email notifications
+│   │   └── cleanup.py           # Database cleanup
+│   ├── scrapers/                # Web scrapers
+│   │   ├── base_scraper.py      # Base scraper class
+│   │   ├── linkedin_scraper.py  # LinkedIn scraper
+│   │   └── indeed_scraper.py    # Indeed scraper
+│   ├── automation/              # Browser automation bots
+│   │   ├── bot_base.py          # Base bot class
+│   │   ├── linkedin_bot.py      # LinkedIn automation
+│   │   └── indeed_bot.py        # Indeed automation
+│   ├── utils/                   # Utility functions
+│   │   ├── validators.py        # Input validation
+│   │   ├── auth_utils.py        # Auth helpers
+│   │   ├── file_utils.py        # File handling
+│   │   ├── email_service.py     # Email sending
+│   │   ├── job_matcher.py       # AI matching
+│   │   └── rate_limiter.py      # Rate limiting
+│   └── middleware/              # Custom middleware
+│       └── auth_middleware.py   # JWT authentication
+├── migrations/                  # Database migrations
+├── tests/                       # Unit tests
+├── run.py                       # Flask app entry point
+├── celery_worker.py             # Celery worker entry point
+├── generate_key.py              # Encryption key generator
+├── requirements.txt             # Python dependencies
+├── .env                         # Environment variables
+├── .env.example                 # Environment template
+├── Procfile                     # Deployment configuration
+├── README.md                    # This file
+└── AUTOMATION_GUIDE.md          # Automation documentation
 ```
 
 ## Setup Instructions
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - PostgreSQL database
+- Redis server (for Celery)
+- Chrome/Chromium browser (for Selenium automation)
 - pip package manager
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
 git clone <repository-url>
 cd devapply-backend-hub
 ```
 
-2. Create a virtual environment (recommended):
+2. **Create a virtual environment (recommended):**
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+3. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configure environment variables:
-Create a `.env` file in the root directory:
+4. **Install system dependencies:**
+
+For Ubuntu/Debian:
+```bash
+# Install Redis
+sudo apt-get update
+sudo apt-get install redis-server
+
+# Install Chrome for Selenium
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt install ./google-chrome-stable_current_amd64.deb
+
+# Install ChromeDriver (match your Chrome version)
+sudo apt-get install chromium-chromedriver
+```
+
+For macOS:
+```bash
+# Install Redis
+brew install redis
+
+# Install Chrome
+brew install --cask google-chrome
+
+# ChromeDriver will be installed with Selenium
+```
+
+5. **Configure environment variables:**
+
+Copy the example file and customize it:
+```bash
+cp .env.example .env
+```
+
+Generate encryption key:
+```bash
+python3 generate_key.py
+```
+
+Edit `.env` with your values:
 ```env
 DATABASE_URL=postgresql://username:password@host:port/database
-JWT_SECRET_KEY=your-secret-key-change-in-production
-FLASK_APP=run.py
-FLASK_ENV=development
-CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
+JWT_SECRET_KEY=your-random-secret-key-here
+CREDENTIALS_ENCRYPTION_KEY=<key-from-generate_key.py>
+CELERY_BROKER_URL=redis://localhost:6379/0
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
-5. Initialize the database:
+6. **Initialize the database:**
 ```bash
-flask db migrate -m "Initial migration"
 flask db upgrade
-```
-
-6. Seed initial data (platforms):
-```bash
 flask seed_platforms
 ```
 
-7. Run the development server:
+7. **Start Redis server:**
+```bash
+# Linux/macOS
+redis-server
+
+# Or as a service
+sudo systemctl start redis
+```
+
+8. **Start Celery worker (in a new terminal):**
+```bash
+source venv/bin/activate
+celery -A celery_worker.celery worker --loglevel=info
+```
+
+9. **Start Celery Beat scheduler (in another terminal):**
+```bash
+source venv/bin/activate
+celery -A celery_worker.celery beat --loglevel=info
+```
+
+10. **Run the Flask development server:**
 ```bash
 flask run
 # Or
@@ -135,6 +281,24 @@ python run.py
 ```
 
 The API will be available at `http://localhost:5000`
+
+### Quick Start (All Services)
+
+You can run all services with these commands in separate terminals:
+
+```bash
+# Terminal 1: Redis
+redis-server
+
+# Terminal 2: Celery Worker
+celery -A celery_worker.celery worker --loglevel=info
+
+# Terminal 3: Celery Beat
+celery -A celery_worker.celery beat --loglevel=info
+
+# Terminal 4: Flask API
+flask run
+```
 
 ## API Endpoints
 
@@ -183,6 +347,21 @@ The API will be available at `http://localhost:5000`
 
 ### Platforms
 - `GET /api/platforms` - List all job platforms
+
+### Platform Credentials
+- `POST /api/credentials` - Add platform credentials
+- `GET /api/credentials` - List user's credentials
+- `GET /api/credentials/:id` - Get specific credential
+- `PUT /api/credentials/:id` - Update credential
+- `DELETE /api/credentials/:id` - Delete credential
+
+### Automation Control
+- `GET /api/automation/queue` - View job queue
+- `GET /api/automation/status` - Get automation status
+- `GET /api/automation/discovered-jobs` - List discovered jobs
+- `POST /api/automation/queue/:id/retry` - Retry failed job
+- `DELETE /api/automation/queue/:id` - Remove from queue
+- `GET /api/automation/logs` - View automation logs
 
 ### Health Check
 - `GET /health` - API health check
@@ -234,13 +413,27 @@ flask seed_platforms
 ```
 
 ### Environment Variables Required
+
+**Required:**
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET_KEY` - Secret key for JWT tokens
-- `FLASK_ENV` - production
+- `CREDENTIALS_ENCRYPTION_KEY` - Fernet key for credential encryption
+- `CELERY_BROKER_URL` - Redis URL for Celery
+- `CELERY_RESULT_BACKEND` - Redis URL for task results
+
+**Optional:**
+- `FLASK_ENV` - development or production
 - `CORS_ORIGINS` - Comma-separated list of allowed origins
+- `SMTP_USER` - SMTP username for email notifications
+- `SMTP_PASS` - SMTP password
+- `PROXY_SERVICE_URL` - Proxy service URL for scraping
+- `PROXY_SERVICE_KEY` - Proxy service API key
+- `MAX_APPLICATIONS_PER_HOUR` - Rate limit (default: 5)
+- `MAX_APPLICATIONS_PER_DAY` - Daily limit (default: 20)
 
 ## Database Models
 
+### Core Models
 - **User** - User accounts and profiles
 - **Resume** - User resumes with base64 storage
 - **Platform** - Job board platforms
@@ -249,18 +442,63 @@ flask seed_platforms
 - **Subscription** - User subscription plans
 - **Payment** - Billing history
 
-## Available Job Platforms
+### Automation Models
+- **PlatformCredential** - Encrypted platform login credentials
+- **JobQueue** - Queue of jobs to apply to
+- **JobListing** - Cached discovered jobs
+- **AutomationLog** - Audit trail of automation activities
 
-Popular:
-- LinkedIn
-- Indeed
+## How Automation Works
+
+### Background Job Processing
+
+The automation system runs on a scheduled basis using Celery Beat:
+
+1. **Job Scraping (Every 6 hours)**
+   - Scrapes LinkedIn and Indeed for jobs matching user preferences
+   - Uses AI-powered TF-IDF matching to score jobs (0-100)
+   - Filters out duplicate jobs
+   - Adds high-scoring jobs to user's queue
+
+2. **Application Processing (Every 30 minutes)**
+   - Processes pending jobs in the queue
+   - Checks rate limits and subscription limits
+   - Uses browser automation to apply to jobs
+   - Updates application status and logs
+
+3. **Status Monitoring (Every 4 hours)**
+   - Checks application status updates
+   - Sends email notifications for status changes
+
+4. **Daily Summaries (8 AM daily)**
+   - Sends email summary to all users
+   - Includes yesterday's applications, pending jobs, and updates
+
+5. **Cleanup (Daily at midnight)**
+   - Removes old completed/failed queue items (>30 days)
+   - Archives old automation logs (>90 days)
+
+### Automation Workflow
+
+```
+User → Configure Job Search → System Scrapes Jobs → AI Matches Jobs → Queue High-Scoring Jobs → Bot Applies → Track Applications → Send Notifications
+```
+
+### Supported Platforms
+
+**Fully Automated (Scraping + Application):**
+- ✅ LinkedIn (Easy Apply only)
+- ✅ Indeed
+
+**Coming Soon:**
 - Glassdoor
-
-Others:
 - Monster
+- Dice
+- ZipRecruiter
+
+**Other Platforms (Manual tracking only):**
 - Naukri Gulf
 - Jobble
-- Dice
 - CareerBuilder
 - AngelList
 - SimplyHired
@@ -268,7 +506,6 @@ Others:
 - We Work Remotely
 - Stack Overflow Jobs
 - GitHub Jobs
-- ZipRecruiter
 - FlexJobs
 
 ## Development
@@ -297,10 +534,95 @@ flask shell
 # Access db, User, Resume, etc. in shell
 ```
 
+## Security Considerations
+
+### Credential Storage
+- Platform credentials (LinkedIn, Indeed passwords) are encrypted using Fernet symmetric encryption
+- Encryption key must be kept secret and never committed to version control
+- Changing the encryption key will invalidate all stored credentials
+
+### Rate Limiting
+- Application submission is rate-limited to avoid detection
+- Default: 5 applications per hour, 20 per day
+- Configurable via environment variables
+- Random delays between applications (3-5 minutes)
+
+### Browser Automation
+- Runs in headless mode by default
+- User-agent rotation to appear more human
+- Respects platform rate limits
+- Handles CAPTCHAs gracefully (manual intervention required)
+
+### Best Practices
+- Use dedicated email accounts for automation
+- Enable 2FA where possible
+- Monitor automation logs regularly
+- Set reasonable application limits
+- Keep browser and drivers updated
+
+## Monitoring
+
+### Celery Flower (Optional)
+
+Monitor Celery tasks with Flower:
+
+```bash
+celery -A celery_worker.celery flower --port=5555
+```
+
+Access at: `http://localhost:5555`
+
+### Automation Logs
+
+View automation activity:
+```bash
+# API endpoint
+GET /api/automation/logs?limit=100
+
+# Database query
+flask shell
+>>> AutomationLog.query.order_by(AutomationLog.created_at.desc()).limit(10).all()
+```
+
+## Troubleshooting
+
+### Selenium/ChromeDriver Issues
+```bash
+# Check Chrome version
+google-chrome --version
+
+# Install matching ChromeDriver
+# Download from: https://chromedriver.chromium.org/downloads
+```
+
+### Redis Connection Failed
+```bash
+# Check if Redis is running
+redis-cli ping
+# Should return: PONG
+
+# Restart Redis
+sudo systemctl restart redis
+```
+
+### Celery Tasks Not Running
+```bash
+# Check Celery worker logs
+celery -A celery_worker.celery worker --loglevel=debug
+
+# Check Beat scheduler
+celery -A celery_worker.celery beat --loglevel=debug
+
+# Purge all tasks
+celery -A celery_worker.celery purge
+```
+
 ## License
 
 MIT
 
 ## Support
 
-For issues and questions, please create an issue in the repository. 
+For issues and questions, please create an issue in the repository.
+
+For detailed automation documentation, see [AUTOMATION_GUIDE.md](AUTOMATION_GUIDE.md). 
