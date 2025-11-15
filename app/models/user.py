@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 
@@ -26,6 +27,16 @@ class User(db.Model):
     avatar_base64 = db.Column(db.Text)
     oauth_provider = db.Column(db.String(20))  # 'google' or 'github'
     oauth_id = db.Column(db.String(255))
+
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False)
+    email_verification_token = db.Column(db.String(255), unique=True, nullable=True)
+    email_verification_sent_at = db.Column(db.DateTime, nullable=True)
+
+    # Password reset
+    password_reset_token = db.Column(db.String(255), unique=True, nullable=True)
+    password_reset_sent_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -46,11 +57,59 @@ class User(db.Model):
             return False
         return check_password_hash(self.password_hash, password)
 
+    def generate_email_verification_token(self):
+        """Generate a secure token for email verification"""
+        self.email_verification_token = secrets.token_urlsafe(32)
+        self.email_verification_sent_at = datetime.utcnow()
+        return self.email_verification_token
+
+    def verify_email_token(self, token, expiry_hours=24):
+        """Verify email verification token"""
+        if not self.email_verification_token or self.email_verification_token != token:
+            return False
+
+        # Check if token has expired
+        if self.email_verification_sent_at:
+            expiry_time = self.email_verification_sent_at + timedelta(hours=expiry_hours)
+            if datetime.utcnow() > expiry_time:
+                return False
+
+        # Mark email as verified
+        self.email_verified = True
+        self.email_verification_token = None
+        self.email_verification_sent_at = None
+        return True
+
+    def generate_password_reset_token(self):
+        """Generate a secure token for password reset"""
+        self.password_reset_token = secrets.token_urlsafe(32)
+        self.password_reset_sent_at = datetime.utcnow()
+        return self.password_reset_token
+
+    def verify_password_reset_token(self, token, expiry_hours=1):
+        """Verify password reset token"""
+        if not self.password_reset_token or self.password_reset_token != token:
+            return False
+
+        # Check if token has expired
+        if self.password_reset_sent_at:
+            expiry_time = self.password_reset_sent_at + timedelta(hours=expiry_hours)
+            if datetime.utcnow() > expiry_time:
+                return False
+
+        return True
+
+    def clear_password_reset_token(self):
+        """Clear password reset token after successful reset"""
+        self.password_reset_token = None
+        self.password_reset_sent_at = None
+
     def to_dict(self, include_sensitive=False):
         """Convert user to dictionary"""
         data = {
             'id': self.id,
             'email': self.email,
+            'email_verified': self.email_verified,
             'full_name': self.full_name,
             'phone': self.phone,
             'location': self.location,

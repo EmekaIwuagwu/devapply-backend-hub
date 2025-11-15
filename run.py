@@ -1,7 +1,7 @@
 import os
 from app import create_app, db
 from app.models import (
-    User, Resume, Platform, JobSearchConfig, Application,
+    User, UserPreferences, Resume, Platform, JobSearchConfig, Application,
     Subscription, Payment, JobQueue, JobListing, AutomationLog,
     PlatformCredential
 )
@@ -16,6 +16,7 @@ def make_shell_context():
     return {
         'db': db,
         'User': User,
+        'UserPreferences': UserPreferences,
         'Resume': Resume,
         'Platform': Platform,
         'JobSearchConfig': JobSearchConfig,
