@@ -104,9 +104,17 @@ def get_config():
         config = JobSearchConfig.query.filter_by(user_id=user_id).first()
 
         if not config:
-            return error_response('CONFIG_NOT_FOUND', 'Configuration not found', status_code=404)
+            # Return empty/default config instead of 404 for better UX
+            return create_response(data={
+                'config': None,
+                'has_config': False,
+                'message': 'No configuration found. Create one to get started.'
+            })
 
-        return create_response(data={'config': config.to_dict()})
+        return create_response(data={
+            'config': config.to_dict(),
+            'has_config': True
+        })
 
     except Exception as e:
         return error_response('FETCH_FAILED', str(e), status_code=500)
