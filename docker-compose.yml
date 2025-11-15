@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: devapply-db
+    environment:
+      POSTGRES_DB: devapplydb
+      POSTGRES_USER: devapplyuser
+      POSTGRES_PASSWORD: devapplypass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devapplyuser -d devapplydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devapply-network
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: devapply-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devapply-network
+
+  # Flask Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devapply-web
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 --reload --access-logfile - --error-logfile - run:app
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://devapplyuser:devapplypass@db:5432/devapplydb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_APP=run.py
+      - FLASK_ENV=development
+      - JWT_SECRET_KEY=dev-secret-key-change-in-production
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@devapply.com}
+      - MAX_APPLICATIONS_PER_HOUR=5
+      - MAX_APPLICATIONS_PER_DAY=20
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devapply-network
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devapply-celery-worker
+    command: celery -A celery_worker.celery worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://devapplyuser:devapplypass@db:5432/devapplydb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@devapply.com}
+      - MAX_APPLICATIONS_PER_HOUR=5
+      - MAX_APPLICATIONS_PER_DAY=20
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devapply-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devapply-celery-beat
+    command: celery -A celery_worker.celery beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://devapplyuser:devapplypass@db:5432/devapplydb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devapply-network
+
+  # Flower - Celery Monitoring (Optional)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devapply-flower
+    command: celery -A celery_worker.celery flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - devapply-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  devapply-network:
+    driver: bridge

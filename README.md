@@ -400,6 +400,109 @@ flask run
 - **Input Sanitization**: Email, password, and data validation
 - **CORS**: Configurable allowed origins
 
+## Docker Deployment
+
+### Using Docker Compose (Local Development)
+
+The easiest way to run the entire stack locally:
+
+```bash
+# 1. Set environment variables
+export CREDENTIALS_ENCRYPTION_KEY=$(python3 generate_key.py | grep -oP '(?<=CREDENTIALS_ENCRYPTION_KEY=).*')
+export SMTP_USER=your-email@gmail.com
+export SMTP_PASS=your-app-password
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. Check logs
+docker-compose logs -f web
+
+# 4. Stop all services
+docker-compose down
+```
+
+Services started:
+- **PostgreSQL** (port 5432)
+- **Redis** (port 6379)
+- **Flask API** (port 5000)
+- **Celery Worker**
+- **Celery Beat**
+- **Flower** (port 5555) - Celery monitoring
+
+### Using Docker (Production)
+
+Build and run individual services:
+
+```bash
+# Build the image
+docker build -t devapply-backend .
+
+# Run the web server
+docker run -p 5000:5000 \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/db \
+  -e REDIS_URL=redis://host:6379/0 \
+  -e JWT_SECRET_KEY=your-secret-key \
+  -e CREDENTIALS_ENCRYPTION_KEY=your-encryption-key \
+  devapply-backend
+
+# Run Celery worker
+docker run \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/db \
+  -e CELERY_BROKER_URL=redis://host:6379/0 \
+  -e CREDENTIALS_ENCRYPTION_KEY=your-encryption-key \
+  devapply-backend \
+  celery -A celery_worker.celery worker --loglevel=info
+
+# Run Celery beat
+docker run \
+  -e CELERY_BROKER_URL=redis://host:6379/0 \
+  devapply-backend \
+  celery -A celery_worker.celery beat --loglevel=info
+```
+
+### Deploying to Render with Docker
+
+Render will automatically detect and use the `render.yaml` configuration:
+
+**Option 1: Using render.yaml (Recommended)**
+
+1. Push your code to GitHub
+2. Connect your repository to Render
+3. Render will automatically read `render.yaml` and create:
+   - PostgreSQL database
+   - Redis instance
+   - Web service (Flask API)
+   - Worker service (Celery worker)
+   - Beat service (Celery beat)
+
+4. Set these environment variables in Render dashboard:
+   ```
+   CREDENTIALS_ENCRYPTION_KEY=<from generate_key.py>
+   SMTP_USER=<your-email>
+   SMTP_PASS=<your-app-password>
+   ```
+
+**Option 2: Manual Setup**
+
+1. Create a new Web Service in Render
+2. Select "Docker" as the environment
+3. Set the Docker Command:
+   ```
+   sh scripts/start-web.sh
+   ```
+4. Add environment variables (see Environment Variables Required below)
+5. Repeat for worker and beat services with their respective commands:
+   - Worker: `sh scripts/start-worker.sh`
+   - Beat: `sh scripts/start-beat.sh`
+
+**Important Notes:**
+- Render's free tier may spin down services after inactivity
+- Ensure all environment variables are set before deployment
+- Check deployment logs if services fail to start
+- Database migrations run automatically on web service startup
+
+
 ## Deployment
 
 ### Render / Heroku
