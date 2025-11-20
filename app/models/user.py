@@ -28,6 +28,9 @@ class User(db.Model):
     oauth_provider = db.Column(db.String(20))  # 'google' or 'github'
     oauth_id = db.Column(db.String(255))
 
+    # User role for admin access control
+    role = db.Column(db.String(20), default='user', nullable=False, index=True)  # 'user', 'admin', 'moderator'
+
     # Email verification
     email_verified = db.Column(db.Boolean, default=False)
     email_verification_token = db.Column(db.String(255), unique=True, nullable=True)
@@ -110,6 +113,7 @@ class User(db.Model):
             'id': self.id,
             'email': self.email,
             'email_verified': self.email_verified,
+            'role': self.role,
             'full_name': self.full_name,
             'phone': self.phone,
             'location': self.location,

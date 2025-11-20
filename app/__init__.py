@@ -68,6 +68,7 @@ def register_blueprints(app):
     from app.routes.automation import automation_bp
     from app.routes.credentials import credentials_bp
     from app.routes.preferences import preferences_bp
+    from app.routes.admin import admin_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/resumes')
@@ -78,6 +79,7 @@ def register_blueprints(app):
     app.register_blueprint(automation_bp, url_prefix='/api/automation')
     app.register_blueprint(credentials_bp, url_prefix='/api/credentials')
     app.register_blueprint(preferences_bp, url_prefix='/api/preferences')
+    app.register_blueprint(admin_bp)  # Already has /api/admin prefix in blueprint definition
 
 
 def register_error_handlers(app):

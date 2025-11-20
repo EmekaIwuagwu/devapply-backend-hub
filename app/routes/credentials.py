@@ -106,7 +106,7 @@ def delete_credential(platform):
         return error_response('DELETE_FAILED', str(e), status_code=500)
 
 
-@credentials_bp.route('/<platform>/verify', methods='POST'])
+@credentials_bp.route('/<platform>/verify', methods=['POST'])
 @jwt_required()
 def verify_credential(platform):
     """Verify platform credential"""

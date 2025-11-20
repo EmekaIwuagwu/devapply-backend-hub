@@ -7,6 +7,7 @@ from app.routes.platforms import platforms_bp
 from app.routes.credentials import credentials_bp
 from app.routes.automation import automation_bp
 from app.routes.preferences import preferences_bp
+from app.routes.admin import admin_bp
 
 __all__ = [
     'auth_bp',
@@ -17,5 +18,6 @@ __all__ = [
     'platforms_bp',
     'credentials_bp',
     'automation_bp',
-    'preferences_bp'
+    'preferences_bp',
+    'admin_bp'
 ]
