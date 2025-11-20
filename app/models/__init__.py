@@ -9,6 +9,9 @@ from app.models.job_queue import JobQueue
 from app.models.job_listing import JobListing
 from app.models.automation_log import AutomationLog
 from app.models.platform_credential import PlatformCredential
+from app.models.video import Video
+from app.models.settings import Settings
+from app.models.activity_log import ActivityLog
 
 __all__ = [
     'User',
@@ -22,5 +25,8 @@ __all__ = [
     'JobQueue',
     'JobListing',
     'AutomationLog',
-    'PlatformCredential'
+    'PlatformCredential',
+    'Video',
+    'Settings',
+    'ActivityLog'
 ]
