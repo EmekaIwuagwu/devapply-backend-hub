@@ -21,12 +21,18 @@ def start_immediate_applications(user_id, config_id):
     Processes both primary and secondary configs simultaneously
     """
     try:
+        # Log start
+        log_event(user_id, 'immediate_apply_start', 'info',
+                 f'Starting immediate job applications for user {user_id}')
+
         user = User.query.get(user_id)
         if not user:
+            log_event(user_id, 'immediate_apply', 'failed', 'User not found')
             return {"success": False, "error": "User not found"}
 
         config = JobSearchConfig.query.get(config_id)
         if not config:
+            log_event(user_id, 'immediate_apply', 'failed', 'Config not found')
             return {"success": False, "error": "Config not found"}
 
         # Check subscription limits
@@ -36,18 +42,27 @@ def start_immediate_applications(user_id, config_id):
         ).first()
 
         if subscription and subscription.applications_used >= subscription.applications_limit:
-            log_event(user_id, 'immediate_apply', 'failed', 'Application limit reached')
+            log_event(user_id, 'immediate_apply', 'failed',
+                     f'Application limit reached: {subscription.applications_used}/{subscription.applications_limit}')
             return {"success": False, "error": "Application limit reached"}
 
         # Get platform credentials
         platforms = config.platforms or []
         if not platforms:
+            log_event(user_id, 'immediate_apply', 'failed', 'No platforms configured')
             return {"success": False, "error": "No platforms configured"}
+
+        log_event(user_id, 'config_loaded', 'info',
+                 f'Loaded config with {len(platforms)} platform(s): {", ".join(platforms)}')
 
         # Get user's resumes
         resumes = Resume.query.filter_by(user_id=user_id).all()
         if not resumes:
+            log_event(user_id, 'immediate_apply', 'failed', 'No resumes uploaded')
             return {"success": False, "error": "No resumes uploaded"}
+
+        log_event(user_id, 'resumes_found', 'info',
+                 f'Found {len(resumes)} resume(s) in database')
 
         total_applied = 0
         errors = []
@@ -69,6 +84,8 @@ def start_immediate_applications(user_id, config_id):
                 'keywords': config.primary_keywords or [],
                 'resume_id': config.primary_resume_id
             })
+            log_event(user_id, 'primary_config_loaded', 'info',
+                     f'Primary search: {config.primary_job_title} in {config.primary_location or "Any location"}')
 
         # Add secondary config
         if config.secondary_job_title:
@@ -84,14 +101,23 @@ def start_immediate_applications(user_id, config_id):
                 'keywords': config.secondary_keywords or [],
                 'resume_id': config.secondary_resume_id
             })
+            log_event(user_id, 'secondary_config_loaded', 'info',
+                     f'Secondary search: {config.secondary_job_title} in {config.secondary_location or "Any location"}')
 
         # Process each config
         for search_config in configs_to_process:
+            config_type = search_config['type']
+
             # Get appropriate resume
             resume = get_matching_resume(resumes, search_config)
             if not resume:
-                errors.append(f"No matching resume for {search_config['type']} config")
+                error_msg = f"No matching resume for {config_type} config"
+                log_event(user_id, 'resume_match_failed', 'failed', error_msg)
+                errors.append(error_msg)
                 continue
+
+            log_event(user_id, 'resume_matched', 'success',
+                     f'{config_type.capitalize()} config matched to resume: {resume.filename}')
 
             # Process each platform
             for platform in platforms:
@@ -103,8 +129,14 @@ def start_immediate_applications(user_id, config_id):
                     ).first()
 
                     if not credential:
-                        errors.append(f"No credentials for {platform}")
+                        error_msg = f"No credentials for {platform}"
+                        log_event(user_id, 'credentials_missing', 'failed',
+                                f'{error_msg} - Please add credentials on Credentials page')
+                        errors.append(error_msg)
                         continue
+
+                    log_event(user_id, 'credentials_found', 'success',
+                             f'{platform} credentials found for {config_type} config')
 
                     # Search and apply to jobs on this platform
                     applied_count = search_and_apply_immediate(
@@ -118,17 +150,26 @@ def start_immediate_applications(user_id, config_id):
                     )
 
                     total_applied += applied_count
+                    log_event(user_id, 'platform_complete', 'success',
+                             f'Applied to {applied_count} job(s) on {platform} for {config_type} search')
 
                 except Exception as e:
-                    errors.append(f"Error on {platform}: {str(e)}")
+                    error_msg = f"Error on {platform}: {str(e)}"
+                    log_event(user_id, 'platform_error', 'failed', error_msg)
+                    errors.append(error_msg)
 
         # Log completion
         log_event(
             user_id,
-            'immediate_apply',
+            'immediate_apply_complete',
             'success',
-            f"Applied to {total_applied} jobs",
-            details={'errors': errors if errors else None}
+            f"✅ Job application process complete! Applied to {total_applied} total job(s)",
+            details={
+                'total_applied': total_applied,
+                'platforms': platforms,
+                'configs_processed': len(configs_to_process),
+                'errors': errors if errors else None
+            }
         )
 
         return {
@@ -138,7 +179,7 @@ def start_immediate_applications(user_id, config_id):
         }
 
     except Exception as e:
-        log_event(user_id, 'immediate_apply', 'failed', f"Error: {str(e)}")
+        log_event(user_id, 'immediate_apply', 'failed', f"Fatal error: {str(e)}")
         return {"success": False, "error": str(e)}
 
 
@@ -186,8 +227,13 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
     from app.automation.indeed_bot import IndeedBot
 
     applied_count = 0
+    config_type = search_config['type']
 
     try:
+        # Log platform start
+        log_event(user.id, 'platform_start', 'info',
+                 f'🚀 Starting {platform} automation for {config_type} search')
+
         # Prepare user profile with credentials
         user_profile = user.to_dict()
 
@@ -200,14 +246,32 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
             user_profile['indeed_password'] = credential.get_password()
             bot = IndeedBot(user_profile=user_profile, resume_base64=resume.file_base64)
         else:
+            log_event(user.id, 'platform_unsupported', 'failed',
+                     f'No automation bot available for {platform}')
             return 0
 
         # Login to platform
+        log_event(user.id, 'platform_login_attempt', 'info',
+                 f'🔐 Logging into {platform}...')
+
         if not bot.login():
-            log_event(user.id, 'platform_login', 'failed', f"Failed to login to {platform}")
+            log_event(user.id, 'platform_login', 'failed',
+                     f"❌ Failed to login to {platform} - Please check your credentials")
             return 0
 
+        log_event(user.id, 'platform_login', 'success',
+                 f'✅ Successfully logged into {platform}!')
+
         # Search for jobs
+        log_event(user.id, 'job_search_start', 'info',
+                 f'🔍 Searching for {search_config["job_title"]} jobs on {platform}...',
+                 details={
+                     'job_title': search_config['job_title'],
+                     'location': search_config['location'],
+                     'job_type': search_config['job_type'],
+                     'experience_level': search_config['experience_level']
+                 })
+
         jobs = bot.search_jobs(
             job_title=search_config['job_title'],
             location=search_config['location'],
@@ -217,8 +281,22 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
             keywords=search_config['keywords']
         )
 
+        jobs_count = len(jobs)
+        log_event(user.id, 'job_search_complete', 'success',
+                 f'📋 Found {jobs_count} matching job(s) on {platform}',
+                 details={'jobs_found': jobs_count})
+
+        if jobs_count == 0:
+            log_event(user.id, 'no_jobs_found', 'info',
+                     f'No matching jobs found for {search_config["job_title"]} on {platform}')
+            bot.logout()
+            return 0
+
         # Apply to ALL matching jobs
-        for job in jobs:
+        log_event(user.id, 'application_start', 'info',
+                 f'📝 Starting to apply to {jobs_count} job(s)...')
+
+        for idx, job in enumerate(jobs, 1):
             try:
                 # Check if already applied
                 existing = Application.query.filter_by(
@@ -227,13 +305,20 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
                 ).first()
 
                 if existing:
-                    continue  # Skip already applied
+                    log_event(user.id, 'job_skipped', 'info',
+                             f'⏭️ Skipped {job["company_name"]} - Already applied')
+                    continue
 
                 # Check subscription limit
                 if subscription and subscription.applications_used >= subscription.applications_limit:
-                    break  # Stop if limit reached
+                    log_event(user.id, 'application_limit_reached', 'info',
+                             f'🛑 Application limit reached ({subscription.applications_limit}). Stopping.')
+                    break
 
                 # Apply to job
+                log_event(user.id, 'job_application_attempt', 'info',
+                         f'📤 Applying to job {idx}/{jobs_count}: {job["company_name"]} - {job["job_title"]}')
+
                 success, message = bot.apply_to_job(job['job_url'])
 
                 if success:
@@ -268,21 +353,39 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
                         user.id,
                         'job_apply',
                         'success',
-                        f"Applied to {job['company_name']} - {job['job_title']}",
-                        details={'platform': platform, 'config_type': search_config['type']}
+                        f"✅ Successfully applied to {job['company_name']} - {job['job_title']}",
+                        details={
+                            'platform': platform,
+                            'config_type': config_type,
+                            'company': job['company_name'],
+                            'job_title': job['job_title'],
+                            'location': job.get('location'),
+                            'total_applied': applied_count
+                        }
                     )
+                else:
+                    # Log failure
+                    log_event(user.id, 'job_apply', 'failed',
+                             f"❌ Failed to apply to {job['company_name']}: {message}")
 
             except Exception as e:
-                print(f"Error applying to job: {str(e)}")
+                log_event(user.id, 'job_apply_error', 'failed',
+                         f"⚠️ Error applying to {job.get('company_name', 'Unknown')}: {str(e)}")
                 continue
 
         # Logout
+        log_event(user.id, 'platform_logout', 'info',
+                 f'🔓 Logging out of {platform}')
         bot.logout()
+
+        log_event(user.id, 'platform_session_complete', 'success',
+                 f'✅ {platform} session complete: Applied to {applied_count}/{jobs_count} job(s)')
 
         return applied_count
 
     except Exception as e:
-        print(f"Error in search_and_apply_immediate: {str(e)}")
+        log_event(user.id, 'platform_error', 'failed',
+                 f"❌ Error in {platform} automation: {str(e)}")
         return applied_count
 
 
