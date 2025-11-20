@@ -62,6 +62,134 @@ def create_app(config_name=None):
             }
         }), 200
 
+    # System status endpoint - shows if all services are running
+    @app.route('/api/system/status', methods=['GET'])
+    def system_status():
+        """
+        Check status of all system components:
+        - Web API (always true if this responds)
+        - Database connection
+        - Redis connection
+        - Celery worker
+        - Celery beat scheduler
+        """
+        import os
+        from datetime import datetime
+
+        status = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'services': {},
+            'overall_status': 'healthy'
+        }
+
+        # Web API (always true if we get here)
+        status['services']['web_api'] = {
+            'status': 'running',
+            'message': 'Web API is responding'
+        }
+
+        # Check Database
+        try:
+            db.session.execute('SELECT 1')
+            status['services']['database'] = {
+                'status': 'connected',
+                'message': 'Database connection successful'
+            }
+        except Exception as e:
+            status['services']['database'] = {
+                'status': 'error',
+                'message': f'Database connection failed: {str(e)}'
+            }
+            status['overall_status'] = 'degraded'
+
+        # Check Redis
+        try:
+            import redis
+            redis_url = os.getenv('REDIS_URL') or os.getenv('CELERY_BROKER_URL')
+            if redis_url:
+                r = redis.from_url(redis_url)
+                r.ping()
+                status['services']['redis'] = {
+                    'status': 'connected',
+                    'message': 'Redis connection successful'
+                }
+            else:
+                status['services']['redis'] = {
+                    'status': 'not_configured',
+                    'message': 'Redis URL not configured'
+                }
+        except Exception as e:
+            status['services']['redis'] = {
+                'status': 'error',
+                'message': f'Redis connection failed: {str(e)}'
+            }
+            status['overall_status'] = 'degraded'
+
+        # Check Celery Worker
+        try:
+            from app.celery_config import celery
+            inspect = celery.control.inspect(timeout=2.0)
+            active_workers = inspect.active()
+
+            if active_workers and len(active_workers) > 0:
+                worker_count = len(active_workers)
+                status['services']['celery_worker'] = {
+                    'status': 'running',
+                    'message': f'{worker_count} worker(s) active',
+                    'workers': list(active_workers.keys())
+                }
+            else:
+                status['services']['celery_worker'] = {
+                    'status': 'not_running',
+                    'message': '⚠️ NO CELERY WORKERS DETECTED - Background processing will not work!',
+                    'action_required': 'Deploy devapply-worker service in Render'
+                }
+                status['overall_status'] = 'critical'
+        except Exception as e:
+            status['services']['celery_worker'] = {
+                'status': 'error',
+                'message': f'Cannot check Celery workers: {str(e)}'
+            }
+            status['overall_status'] = 'degraded'
+
+        # Check Celery Beat
+        try:
+            from app.celery_config import celery
+            inspect = celery.control.inspect(timeout=2.0)
+            scheduled = inspect.scheduled()
+
+            if scheduled and len(scheduled) > 0:
+                status['services']['celery_beat'] = {
+                    'status': 'running',
+                    'message': 'Celery beat scheduler is active'
+                }
+            else:
+                status['services']['celery_beat'] = {
+                    'status': 'not_running',
+                    'message': '⚠️ NO CELERY BEAT SCHEDULER DETECTED - Scheduled tasks will not run!',
+                    'action_required': 'Deploy devapply-beat service in Render'
+                }
+                status['overall_status'] = 'critical'
+        except Exception as e:
+            status['services']['celery_beat'] = {
+                'status': 'unknown',
+                'message': f'Cannot check Celery beat: {str(e)}'
+            }
+
+        # Add recommendations
+        if status['overall_status'] == 'critical':
+            status['recommendations'] = [
+                'Check Render dashboard for devapply-worker service',
+                'Check Render dashboard for devapply-beat service',
+                'Ensure worker services are deployed and running',
+                'View TROUBLESHOOTING.md in the repository for detailed instructions'
+            ]
+
+        return jsonify({
+            'success': True,
+            'data': status
+        }), 200
+
     return app
 
 
