@@ -25,18 +25,18 @@ CREATE TABLE IF NOT EXISTS users (
     preferred_job_type VARCHAR(100),
     salary_expectations INTEGER,
     professional_bio TEXT,
-    skills JSON DEFAULT '[]',
+    skills JSONB DEFAULT '[]'::jsonb NOT NULL,
     avatar_base64 TEXT,
     oauth_provider VARCHAR(20),
     oauth_id VARCHAR(255),
     role VARCHAR(20) DEFAULT 'user' NOT NULL,
-    email_verified BOOLEAN DEFAULT FALSE,
+    email_verified BOOLEAN DEFAULT FALSE NOT NULL,
     email_verification_token VARCHAR(255) UNIQUE,
     email_verification_sent_at TIMESTAMP,
     password_reset_token VARCHAR(255) UNIQUE,
     password_reset_sent_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS ix_users_email ON users(email);
