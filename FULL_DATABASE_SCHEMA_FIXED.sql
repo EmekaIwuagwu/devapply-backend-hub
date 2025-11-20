@@ -43,6 +43,68 @@ BEGIN
     END IF;
 END $$;
 
+-- Fix subscriptions table if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'subscriptions') THEN
+        -- Add missing columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'billing_cycle') THEN
+            ALTER TABLE subscriptions ADD COLUMN billing_cycle VARCHAR(20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'amount') THEN
+            ALTER TABLE subscriptions ADD COLUMN amount NUMERIC(10, 2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'currency') THEN
+            ALTER TABLE subscriptions ADD COLUMN currency VARCHAR(3) DEFAULT 'USD';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'next_billing_date') THEN
+            ALTER TABLE subscriptions ADD COLUMN next_billing_date DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'started_at') THEN
+            ALTER TABLE subscriptions ADD COLUMN started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'cancelled_at') THEN
+            ALTER TABLE subscriptions ADD COLUMN cancelled_at TIMESTAMP;
+        END IF;
+
+        -- Drop old columns if they exist
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'start_date') THEN
+            ALTER TABLE subscriptions DROP COLUMN start_date;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'end_date') THEN
+            ALTER TABLE subscriptions DROP COLUMN end_date;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'created_at') THEN
+            ALTER TABLE subscriptions DROP COLUMN created_at;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'updated_at') THEN
+            ALTER TABLE subscriptions DROP COLUMN updated_at;
+        END IF;
+    END IF;
+END $$;
+
+-- Fix payments table if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments') THEN
+        -- Add missing columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'payment_method_expiry') THEN
+            ALTER TABLE payments ADD COLUMN payment_method_expiry VARCHAR(10);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'invoice_url') THEN
+            ALTER TABLE payments ADD COLUMN invoice_url TEXT;
+        END IF;
+
+        -- Drop old columns if they exist
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'transaction_id') THEN
+            ALTER TABLE payments DROP COLUMN transaction_id;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'created_at') THEN
+            ALTER TABLE payments DROP COLUMN created_at;
+        END IF;
+    END IF;
+END $$;
+
 -- ============================================================================
 -- TABLE CREATION SECTION
 -- ============================================================================
@@ -168,14 +230,16 @@ CREATE INDEX IF NOT EXISTS ix_job_search_config_user_id ON job_search_config(use
 CREATE TABLE IF NOT EXISTS subscriptions (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    plan_type VARCHAR(50) NOT NULL,
-    status VARCHAR(20) DEFAULT 'inactive',
-    applications_limit INTEGER DEFAULT 0,
+    plan_type VARCHAR(20) DEFAULT 'free' NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    applications_limit INTEGER DEFAULT 10,
     applications_used INTEGER DEFAULT 0,
-    start_date TIMESTAMP,
-    end_date TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    billing_cycle VARCHAR(20),
+    amount NUMERIC(10, 2),
+    currency VARCHAR(3) DEFAULT 'USD',
+    next_billing_date DATE,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cancelled_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -190,13 +254,13 @@ CREATE TABLE IF NOT EXISTS payments (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     subscription_id VARCHAR(36),
-    amount DECIMAL(10, 2) NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL,
     currency VARCHAR(3) DEFAULT 'USD',
-    status VARCHAR(20) DEFAULT 'pending',
     payment_method VARCHAR(50),
-    transaction_id VARCHAR(255),
+    payment_method_expiry VARCHAR(10),
+    status VARCHAR(20) DEFAULT 'pending',
     paid_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    invoice_url TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL
 );
