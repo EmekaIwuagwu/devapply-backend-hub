@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSONB
 from app import db
 
 
@@ -33,7 +34,7 @@ class Settings(db.Model):
     maintenance_message = db.Column(db.Text)
     api_rate_limit_per_hour = db.Column(db.Integer, default=1000)
     max_file_upload_mb = db.Column(db.Integer, default=50)
-    allowed_file_types = db.Column(db.JSON, default=list)  # ['pdf', 'doc', 'docx', etc.]
+    allowed_file_types = db.Column(JSONB, default=list, server_default='[]')  # ['pdf', 'doc', 'docx', etc.]
 
     # Automation Settings
     max_applications_per_user_per_day = db.Column(db.Integer, default=50)
