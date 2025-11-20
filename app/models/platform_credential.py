@@ -12,9 +12,9 @@ class PlatformCredential(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
     platform = db.Column(db.String(50), nullable=False, index=True)  # 'linkedin', 'indeed', etc.
-    username = db.Column(db.String(255), nullable=False)  # Email/username (encrypted)
-    password_encrypted = db.Column(db.Text, nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
+    username_encrypted = db.Column(db.Text)  # Encrypted username/email
+    encrypted_password = db.Column(db.Text, nullable=False)  # Encrypted password (matches DB column name)
+    is_verified = db.Column(db.Boolean, default=False)  # Match DB column name
     last_verified_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -39,15 +39,27 @@ class PlatformCredential(db.Model):
 
         return Fernet(key)
 
+    def set_username(self, username):
+        """Encrypt and store username"""
+        cipher = self.get_cipher()
+        self.username_encrypted = cipher.encrypt(username.encode()).decode()
+
+    def get_username(self):
+        """Decrypt and return username"""
+        if not self.username_encrypted:
+            return None
+        cipher = self.get_cipher()
+        return cipher.decrypt(self.username_encrypted.encode()).decode()
+
     def set_password(self, password):
         """Encrypt and store password"""
         cipher = self.get_cipher()
-        self.password_encrypted = cipher.encrypt(password.encode()).decode()
+        self.encrypted_password = cipher.encrypt(password.encode()).decode()
 
     def get_password(self):
         """Decrypt and return password"""
         cipher = self.get_cipher()
-        return cipher.decrypt(self.password_encrypted.encode()).decode()
+        return cipher.decrypt(self.encrypted_password.encode()).decode()
 
     def verify_credentials(self):
         """
@@ -65,8 +77,8 @@ class PlatformCredential(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'platform': self.platform,
-            'username': self.username,
-            'is_active': self.is_active,
+            'username': self.get_username(),  # Decrypt username for display
+            'is_verified': self.is_verified,
             'last_verified_at': self.last_verified_at.isoformat() if self.last_verified_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
@@ -79,4 +91,5 @@ class PlatformCredential(db.Model):
         return data
 
     def __repr__(self):
-        return f'<PlatformCredential {self.platform} - {self.username}>'
+        username = self.get_username() if self.username_encrypted else 'N/A'
+        return f'<PlatformCredential {self.platform} - {username}>'

@@ -49,9 +49,9 @@ def add_credential():
 
         if existing:
             # Update existing
-            existing.username = username
+            existing.set_username(username)
             existing.set_password(password)
-            existing.is_active = True
+            existing.is_verified = False  # Reset verification status on update
             db.session.commit()
 
             return create_response(
@@ -62,9 +62,9 @@ def add_credential():
             # Create new
             credential = PlatformCredential(
                 user_id=user_id,
-                platform=platform,
-                username=username
+                platform=platform
             )
+            credential.set_username(username)
             credential.set_password(password)
 
             db.session.add(credential)
