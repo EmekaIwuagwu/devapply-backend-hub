@@ -31,7 +31,15 @@ else:
 END
 
 # Start Celery worker
-echo "Starting Celery worker..."
+echo "================================================================================"
+echo "STARTING CELERY WORKER - Background Process Starting"
+echo "================================================================================"
+echo "Worker Configuration:"
+echo "  - Concurrency: ${CELERY_CONCURRENCY:-2}"
+echo "  - Max tasks per child: 1000"
+echo "  - Time limit: 3600s"
+echo "  - Soft time limit: 3000s"
+echo "================================================================================"
 exec celery -A celery_worker.celery worker \
     --loglevel=info \
     --concurrency=${CELERY_CONCURRENCY:-2} \

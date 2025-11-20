@@ -20,7 +20,14 @@ app = create_app()
 celery = make_celery(app)
 
 # Import all tasks to register them
-from app.tasks import job_scraper, job_applicator, status_checker, notifications, cleanup
+from app.tasks import job_scraper, job_applicator, status_checker, notifications, cleanup, immediate_applicator
+
+# Log registered tasks
+print("=" * 80)
+print("CELERY WORKER STARTING")
+print("=" * 80)
+print(f"Registered tasks: {list(celery.tasks.keys())}")
+print("=" * 80)
 
 if __name__ == '__main__':
     celery.start()

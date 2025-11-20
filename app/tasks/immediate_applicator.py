@@ -21,6 +21,12 @@ def start_immediate_applications(user_id, config_id):
     Processes both primary and secondary configs simultaneously
     """
     try:
+        # Log task started to console
+        print("=" * 80)
+        print(f"IMMEDIATE APPLICATION TASK STARTED")
+        print(f"User ID: {user_id}, Config ID: {config_id}")
+        print("=" * 80)
+
         # Log start
         log_event(user_id, 'immediate_apply_start', 'info',
                  f'Starting immediate job applications for user {user_id}')

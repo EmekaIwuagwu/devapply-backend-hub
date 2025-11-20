@@ -17,7 +17,8 @@ def make_celery(app=None):
             'app.tasks.job_applicator',
             'app.tasks.status_checker',
             'app.tasks.notifications',
-            'app.tasks.cleanup'
+            'app.tasks.cleanup',
+            'app.tasks.immediate_applicator'
         ]
     )
 
