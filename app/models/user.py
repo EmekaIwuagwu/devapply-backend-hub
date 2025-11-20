@@ -2,6 +2,7 @@ import uuid
 import secrets
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.dialects.postgresql import ARRAY
 from app import db
 
 
@@ -24,6 +25,7 @@ class User(db.Model):
     salary_expectations = db.Column(db.Integer)
     professional_bio = db.Column(db.Text)
     skills = db.Column(db.JSON, default=list, nullable=False)
+    skills = db.Column(ARRAY(db.String), default=list)
     avatar_base64 = db.Column(db.Text)
     oauth_provider = db.Column(db.String(20))  # 'google' or 'github'
     oauth_id = db.Column(db.String(255))
