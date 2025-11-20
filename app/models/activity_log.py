@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSONB
 from app import db
 
 
@@ -15,7 +16,7 @@ class ActivityLog(db.Model):
     description = db.Column(db.Text, nullable=False)  # Human-readable description
     ip_address = db.Column(db.String(45))  # IPv4 or IPv6
     user_agent = db.Column(db.String(500))
-    changes = db.Column(db.JSON, default=dict)  # Track what changed (before/after)
+    changes = db.Column(JSONB, default=dict, server_default='{}')  # Track what changed (before/after)
     status = db.Column(db.String(20), default='success')  # 'success', 'failed', 'warning'
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
 from app import db
 
 
@@ -13,7 +13,7 @@ class JobSearchConfig(db.Model):
 
     # Configuration metadata
     config_name = db.Column(db.String(255))
-    platforms = db.Column(ARRAY(db.String), default=list)  # Array of platform slugs/IDs
+    platforms = db.Column(JSONB, default=list, server_default='[]')  # Array of platform slugs/IDs
 
     # Primary job search configuration
     primary_job_title = db.Column(db.String(255))
@@ -23,7 +23,7 @@ class JobSearchConfig(db.Model):
     primary_max_salary = db.Column(db.Integer)
     primary_experience_level = db.Column(db.String(50))
     primary_remote_preference = db.Column(db.String(50))  # remote, hybrid, onsite
-    primary_keywords = db.Column(ARRAY(db.String), default=list)
+    primary_keywords = db.Column(JSONB, default=list, server_default='[]')
     primary_resume_id = db.Column(db.String(36), db.ForeignKey('resumes.id'))
 
     # Secondary job search configuration
@@ -34,7 +34,7 @@ class JobSearchConfig(db.Model):
     secondary_max_salary = db.Column(db.Integer)
     secondary_experience_level = db.Column(db.String(50))
     secondary_remote_preference = db.Column(db.String(50))
-    secondary_keywords = db.Column(ARRAY(db.String), default=list)
+    secondary_keywords = db.Column(JSONB, default=list, server_default='[]')
     secondary_resume_id = db.Column(db.String(36), db.ForeignKey('resumes.id'))
 
     is_active = db.Column(db.Boolean, default=True)

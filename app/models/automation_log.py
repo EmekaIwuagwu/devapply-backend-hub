@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSONB
 from app import db
 
 
@@ -13,7 +14,7 @@ class AutomationLog(db.Model):
     action_type = db.Column(db.String(50), nullable=False, index=True)  # job_search, job_apply, status_update
     status = db.Column(db.String(20), nullable=False)  # success, failed, warning
     message = db.Column(db.Text, nullable=False)
-    details = db.Column(db.JSON, default=dict)  # Additional details (renamed from metadata)
+    details = db.Column(JSONB, default=dict, server_default='{}')  # Additional details (renamed from metadata)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     def to_dict(self):
