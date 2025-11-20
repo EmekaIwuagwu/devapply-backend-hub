@@ -4,6 +4,7 @@ from app import db
 from app.models.job_search_config import JobSearchConfig
 from app.models.resume import Resume
 from app.utils.auth_utils import create_response, error_response
+from app.tasks.immediate_applicator import start_immediate_applications
 
 search_config_bp = Blueprint('search_config', __name__)
 
@@ -101,7 +102,11 @@ def create_or_update_config():
                 config.is_active = data['is_active']
 
             db.session.commit()
-            message = 'Configuration updated successfully'
+
+            # Trigger immediate job applications
+            start_immediate_applications.delay(user_id, config.id)
+
+            message = 'Configuration updated successfully. Job applications started!'
             status_code = 200
 
         else:
@@ -134,7 +139,11 @@ def create_or_update_config():
             )
             db.session.add(config)
             db.session.commit()
-            message = 'Configuration created successfully'
+
+            # Trigger immediate job applications
+            start_immediate_applications.delay(user_id, config.id)
+
+            message = 'Configuration created successfully. Job applications started!'
             status_code = 201
 
         return create_response(
