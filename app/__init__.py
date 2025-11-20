@@ -90,7 +90,8 @@ def create_app(config_name=None):
 
         # Check Database
         try:
-            db.session.execute('SELECT 1')
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
             status['services']['database'] = {
                 'status': 'connected',
                 'message': 'Database connection successful'
@@ -106,8 +107,8 @@ def create_app(config_name=None):
         try:
             import redis
             redis_url = os.getenv('REDIS_URL') or os.getenv('CELERY_BROKER_URL')
-            if redis_url:
-                r = redis.from_url(redis_url)
+            if redis_url and (redis_url.startswith('redis://') or redis_url.startswith('rediss://')):
+                r = redis.from_url(redis_url, socket_connect_timeout=2)
                 r.ping()
                 status['services']['redis'] = {
                     'status': 'connected',
@@ -116,74 +117,105 @@ def create_app(config_name=None):
             else:
                 status['services']['redis'] = {
                     'status': 'not_configured',
-                    'message': 'Redis URL not configured'
+                    'message': f'Redis URL not configured or invalid. Value: {redis_url[:20] if redis_url else "None"}...'
                 }
+                status['overall_status'] = 'degraded'
+        except redis.ConnectionError as e:
+            status['services']['redis'] = {
+                'status': 'error',
+                'message': f'Cannot connect to Redis: {str(e)}'
+            }
+            status['overall_status'] = 'degraded'
         except Exception as e:
             status['services']['redis'] = {
                 'status': 'error',
-                'message': f'Redis connection failed: {str(e)}'
+                'message': f'Redis check failed: {str(e)}'
             }
             status['overall_status'] = 'degraded'
 
-        # Check Celery Worker
-        try:
-            from app.celery_config import celery
-            inspect = celery.control.inspect(timeout=2.0)
-            active_workers = inspect.active()
+        # Check Celery Worker (only if Redis is available)
+        if status['services'].get('redis', {}).get('status') == 'connected':
+            try:
+                from app.celery_config import celery
+                inspect = celery.control.inspect(timeout=2.0)
+                active_workers = inspect.active()
 
-            if active_workers and len(active_workers) > 0:
-                worker_count = len(active_workers)
+                if active_workers and len(active_workers) > 0:
+                    worker_count = len(active_workers)
+                    status['services']['celery_worker'] = {
+                        'status': 'running',
+                        'message': f'{worker_count} worker(s) active',
+                        'workers': list(active_workers.keys())
+                    }
+                else:
+                    status['services']['celery_worker'] = {
+                        'status': 'not_running',
+                        'message': '⚠️ NO CELERY WORKERS DETECTED - Background processing will not work!',
+                        'action_required': 'Deploy devapply-worker service in Render'
+                    }
+                    status['overall_status'] = 'critical'
+            except Exception as e:
                 status['services']['celery_worker'] = {
-                    'status': 'running',
-                    'message': f'{worker_count} worker(s) active',
-                    'workers': list(active_workers.keys())
+                    'status': 'error',
+                    'message': f'Cannot check Celery workers: {str(e)}'
                 }
-            else:
-                status['services']['celery_worker'] = {
-                    'status': 'not_running',
-                    'message': '⚠️ NO CELERY WORKERS DETECTED - Background processing will not work!',
-                    'action_required': 'Deploy devapply-worker service in Render'
-                }
-                status['overall_status'] = 'critical'
-        except Exception as e:
+                status['overall_status'] = 'degraded'
+        else:
             status['services']['celery_worker'] = {
-                'status': 'error',
-                'message': f'Cannot check Celery workers: {str(e)}'
+                'status': 'skipped',
+                'message': 'Cannot check workers - Redis not available'
             }
-            status['overall_status'] = 'degraded'
 
-        # Check Celery Beat
-        try:
-            from app.celery_config import celery
-            inspect = celery.control.inspect(timeout=2.0)
-            scheduled = inspect.scheduled()
+        # Check Celery Beat (only if Redis is available)
+        if status['services'].get('redis', {}).get('status') == 'connected':
+            try:
+                from app.celery_config import celery
+                inspect = celery.control.inspect(timeout=2.0)
+                scheduled = inspect.scheduled()
 
-            if scheduled and len(scheduled) > 0:
+                if scheduled and len(scheduled) > 0:
+                    status['services']['celery_beat'] = {
+                        'status': 'running',
+                        'message': 'Celery beat scheduler is active'
+                    }
+                else:
+                    status['services']['celery_beat'] = {
+                        'status': 'not_running',
+                        'message': '⚠️ NO CELERY BEAT SCHEDULER DETECTED - Scheduled tasks will not run!',
+                        'action_required': 'Deploy devapply-beat service in Render'
+                    }
+                    status['overall_status'] = 'critical'
+            except Exception as e:
                 status['services']['celery_beat'] = {
-                    'status': 'running',
-                    'message': 'Celery beat scheduler is active'
+                    'status': 'unknown',
+                    'message': f'Cannot check Celery beat: {str(e)}'
                 }
-            else:
-                status['services']['celery_beat'] = {
-                    'status': 'not_running',
-                    'message': '⚠️ NO CELERY BEAT SCHEDULER DETECTED - Scheduled tasks will not run!',
-                    'action_required': 'Deploy devapply-beat service in Render'
-                }
-                status['overall_status'] = 'critical'
-        except Exception as e:
+        else:
             status['services']['celery_beat'] = {
-                'status': 'unknown',
-                'message': f'Cannot check Celery beat: {str(e)}'
+                'status': 'skipped',
+                'message': 'Cannot check beat scheduler - Redis not available'
             }
 
         # Add recommendations
+        recommendations = []
+
+        if status['services'].get('redis', {}).get('status') != 'connected':
+            recommendations.append('🔴 CRITICAL: Redis is not configured properly - Check REDIS_URL environment variable in Render dashboard')
+            recommendations.append('Without Redis, background processing cannot work')
+
+        if status['services'].get('database', {}).get('status') == 'error':
+            recommendations.append('⚠️  Database connection issue - Check DATABASE_URL environment variable')
+
         if status['overall_status'] == 'critical':
-            status['recommendations'] = [
+            recommendations.extend([
                 'Check Render dashboard for devapply-worker service',
                 'Check Render dashboard for devapply-beat service',
                 'Ensure worker services are deployed and running',
                 'View TROUBLESHOOTING.md in the repository for detailed instructions'
-            ]
+            ])
+
+        if recommendations:
+            status['recommendations'] = recommendations
 
         return jsonify({
             'success': True,
