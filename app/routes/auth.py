@@ -36,9 +36,11 @@ def register():
             return error_response('USER_EXISTS', 'User with this email already exists', status_code=400)
 
         # Create new user
+        # Accept both 'name' and 'full_name' for compatibility
+        full_name = data.get('full_name') or data.get('name')
         user = User(
             email=data['email'].lower(),
-            full_name=data.get('full_name'),
+            full_name=full_name,
             phone=data.get('phone'),
         )
         user.set_password(data['password'])

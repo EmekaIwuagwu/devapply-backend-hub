@@ -23,7 +23,7 @@ class User(db.Model):
     preferred_job_type = db.Column(db.String(100))
     salary_expectations = db.Column(db.Integer)
     professional_bio = db.Column(db.Text)
-    skills = db.Column(db.JSON, default=list)
+    skills = db.Column(db.JSON, default=list, nullable=False)
     avatar_base64 = db.Column(db.Text)
     oauth_provider = db.Column(db.String(20))  # 'google' or 'github'
     oauth_id = db.Column(db.String(255))
@@ -32,7 +32,7 @@ class User(db.Model):
     role = db.Column(db.String(20), default='user', nullable=False, index=True)  # 'user', 'admin', 'moderator'
 
     # Email verification
-    email_verified = db.Column(db.Boolean, default=False)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
     email_verification_token = db.Column(db.String(255), unique=True, nullable=True)
     email_verification_sent_at = db.Column(db.DateTime, nullable=True)
 
@@ -40,8 +40,8 @@ class User(db.Model):
     password_reset_token = db.Column(db.String(255), unique=True, nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
     resumes = db.relationship('Resume', backref='user', lazy='dynamic', cascade='all, delete-orphan')
