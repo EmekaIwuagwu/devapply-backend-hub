@@ -34,7 +34,9 @@ END
 rm -f celerybeat-schedule
 
 # Start Celery beat
-echo "Starting Celery beat scheduler..."
+echo "================================================================================"
+echo "STARTING CELERY BEAT SCHEDULER - Periodic Task Scheduler Starting"
+echo "================================================================================"
 exec celery -A celery_worker.celery beat \
     --loglevel=info \
     --pidfile=/tmp/celerybeat.pid
