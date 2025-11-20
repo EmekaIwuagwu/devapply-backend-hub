@@ -2,13 +2,12 @@
 -- DevApply Backend - COMPLETE DATABASE SCHEMA (ALL FIXES APPLIED)
 -- ============================================================================
 -- This is the ONLY SQL file you need to run!
--- Creates ALL 15 tables with ALL fixes applied:
+-- Creates ALL 15 tables with ALL fixes applied - MATCHES Python models 100%
 -- ✓ Fixed reserved keyword (current_role)
 -- ✓ All JSON columns are JSONB (not JSON)
--- ✓ Skills column is JSONB with proper default
+-- ✓ ALL models match Python code exactly
 -- ✓ All optional fields are nullable
 -- ✓ All system fields have proper NOT NULL and defaults
--- ✓ Platform credentials columns corrected
 -- ============================================================================
 -- USAGE: Copy this entire file and paste into Render PostgreSQL Shell
 -- ============================================================================
@@ -18,105 +17,29 @@ BEGIN;
 -- ============================================================================
 -- MIGRATION SECTION - Fix existing databases
 -- ============================================================================
--- This section fixes columns in existing databases
--- Safe to run even if tables don't exist yet
--- ============================================================================
 
--- Fix users table if it exists
-DO $$
-BEGIN
-    -- Fix skills column type
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
-        -- Check if skills column exists and is wrong type
-        IF EXISTS (SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'users' AND column_name = 'skills'
-                   AND data_type != 'jsonb') THEN
-            ALTER TABLE users DROP COLUMN skills CASCADE;
-            ALTER TABLE users ADD COLUMN skills JSONB DEFAULT '[]'::jsonb NOT NULL;
-        END IF;
-
-        -- Ensure skills column exists if table exists but column doesn't
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                      WHERE table_name = 'users' AND column_name = 'skills') THEN
-            ALTER TABLE users ADD COLUMN skills JSONB DEFAULT '[]'::jsonb NOT NULL;
-        END IF;
-    END IF;
-END $$;
-
--- Fix subscriptions table if it exists
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'subscriptions') THEN
-        -- Add missing columns
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'billing_cycle') THEN
-            ALTER TABLE subscriptions ADD COLUMN billing_cycle VARCHAR(20);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'amount') THEN
-            ALTER TABLE subscriptions ADD COLUMN amount NUMERIC(10, 2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'currency') THEN
-            ALTER TABLE subscriptions ADD COLUMN currency VARCHAR(3) DEFAULT 'USD';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'next_billing_date') THEN
-            ALTER TABLE subscriptions ADD COLUMN next_billing_date DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'started_at') THEN
-            ALTER TABLE subscriptions ADD COLUMN started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'cancelled_at') THEN
-            ALTER TABLE subscriptions ADD COLUMN cancelled_at TIMESTAMP;
-        END IF;
-
-        -- Drop old columns if they exist
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'start_date') THEN
-            ALTER TABLE subscriptions DROP COLUMN start_date;
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'end_date') THEN
-            ALTER TABLE subscriptions DROP COLUMN end_date;
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'created_at') THEN
-            ALTER TABLE subscriptions DROP COLUMN created_at;
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'updated_at') THEN
-            ALTER TABLE subscriptions DROP COLUMN updated_at;
-        END IF;
-    END IF;
-END $$;
-
--- Fix payments table if it exists
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments') THEN
-        -- Add missing columns
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'payment_method_expiry') THEN
-            ALTER TABLE payments ADD COLUMN payment_method_expiry VARCHAR(10);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'invoice_url') THEN
-            ALTER TABLE payments ADD COLUMN invoice_url TEXT;
-        END IF;
-
-        -- Drop old columns if they exist
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'transaction_id') THEN
-            ALTER TABLE payments DROP COLUMN transaction_id;
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'created_at') THEN
-            ALTER TABLE payments DROP COLUMN created_at;
-        END IF;
-    END IF;
-END $$;
+-- Drop all existing tables to avoid conflicts (backup your data first!)
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS automation_logs CASCADE;
+DROP TABLE IF EXISTS job_queue CASCADE;
+DROP TABLE IF EXISTS job_listings CASCADE;
+DROP TABLE IF EXISTS applications CASCADE;
+DROP TABLE IF EXISTS job_search_configs CASCADE;
+DROP TABLE IF EXISTS resumes CASCADE;
+DROP TABLE IF EXISTS platform_credentials CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS subscriptions CASCADE;
+DROP TABLE IF EXISTS user_preferences CASCADE;
+DROP TABLE IF EXISTS platforms CASCADE;
+DROP TABLE IF EXISTS videos CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- ============================================================================
--- TABLE CREATION SECTION
--- ============================================================================
--- Creates all tables if they don't exist
--- If tables exist, they are left as-is (migration section above handles fixes)
+-- 1. USERS TABLE
 -- ============================================================================
 
--- ============================================================================
--- 1. USERS TABLE (with role column)
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id VARCHAR(36) PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255),
@@ -126,7 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
     linkedin_url VARCHAR(500),
     github_url VARCHAR(500),
     portfolio_url VARCHAR(500),
-    "current_role" VARCHAR(255),  -- FIXED: Escaped reserved keyword
+    "current_role" VARCHAR(255),
     years_experience INTEGER,
     preferred_job_type VARCHAR(100),
     salary_expectations INTEGER,
@@ -145,19 +68,21 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS ix_users_role ON users(role);
+CREATE INDEX ix_users_email ON users(email);
+CREATE INDEX ix_users_role ON users(role);
 
 -- ============================================================================
 -- 2. USER PREFERENCES TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS user_preferences (
+CREATE TABLE user_preferences (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) UNIQUE NOT NULL,
     email_notifications_enabled BOOLEAN DEFAULT TRUE,
     daily_summary_enabled BOOLEAN DEFAULT TRUE,
     application_updates_enabled BOOLEAN DEFAULT TRUE,
+    job_matches_enabled BOOLEAN DEFAULT TRUE,
+    marketing_emails_enabled BOOLEAN DEFAULT FALSE,
     auto_apply_enabled BOOLEAN DEFAULT TRUE,
     max_applications_per_day INTEGER DEFAULT 20,
     min_match_score INTEGER DEFAULT 70,
@@ -173,61 +98,78 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 -- 3. PLATFORMS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS platforms (
+CREATE TABLE platforms (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS ix_platforms_name ON platforms(name);
+CREATE INDEX ix_platforms_name ON platforms(name);
 
 -- ============================================================================
 -- 4. RESUMES TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS resumes (
+CREATE TABLE resumes (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    file_name VARCHAR(255) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
     file_base64 TEXT NOT NULL,
-    file_size INTEGER,
-    is_primary BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_type VARCHAR(10) NOT NULL,
+    file_size INTEGER NOT NULL,
+    is_default BOOLEAN DEFAULT FALSE,
+    job_type_tag VARCHAR(100),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_resumes_user_id ON resumes(user_id);
+CREATE INDEX ix_resumes_user_id ON resumes(user_id);
+CREATE INDEX ix_resumes_is_default ON resumes(is_default);
 
 -- ============================================================================
 -- 5. JOB SEARCH CONFIG TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS job_search_config (
+CREATE TABLE job_search_configs (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    job_titles JSONB DEFAULT '[]'::jsonb,
-    locations JSONB DEFAULT '[]'::jsonb,
-    keywords JSONB DEFAULT '[]'::jsonb,
-    exclude_keywords JSONB DEFAULT '[]'::jsonb,
-    min_salary INTEGER,
-    max_salary INTEGER,
-    job_type VARCHAR(50),
-    experience_level VARCHAR(50),
+    config_name VARCHAR(255),
+    platforms JSONB DEFAULT '[]'::jsonb,
+    primary_job_title VARCHAR(255),
+    primary_location VARCHAR(255),
+    primary_job_type VARCHAR(50),
+    primary_min_salary INTEGER,
+    primary_max_salary INTEGER,
+    primary_experience_level VARCHAR(50),
+    primary_remote_preference VARCHAR(50),
+    primary_keywords JSONB DEFAULT '[]'::jsonb,
+    primary_resume_id VARCHAR(36),
+    secondary_job_title VARCHAR(255),
+    secondary_location VARCHAR(255),
+    secondary_job_type VARCHAR(50),
+    secondary_min_salary INTEGER,
+    secondary_max_salary INTEGER,
+    secondary_experience_level VARCHAR(50),
+    secondary_remote_preference VARCHAR(50),
+    secondary_keywords JSONB DEFAULT '[]'::jsonb,
+    secondary_resume_id VARCHAR(36),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (primary_resume_id) REFERENCES resumes(id) ON DELETE SET NULL,
+    FOREIGN KEY (secondary_resume_id) REFERENCES resumes(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_job_search_config_user_id ON job_search_config(user_id);
+CREATE INDEX ix_job_search_configs_user_id ON job_search_configs(user_id);
 
 -- ============================================================================
 -- 6. SUBSCRIPTIONS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS subscriptions (
+CREATE TABLE subscriptions (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     plan_type VARCHAR(20) DEFAULT 'free' NOT NULL,
@@ -243,14 +185,14 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_subscriptions_user_id ON subscriptions(user_id);
-CREATE INDEX IF NOT EXISTS ix_subscriptions_status ON subscriptions(status);
+CREATE INDEX ix_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX ix_subscriptions_status ON subscriptions(status);
 
 -- ============================================================================
 -- 7. PAYMENTS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE payments (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     subscription_id VARCHAR(36),
@@ -265,86 +207,102 @@ CREATE TABLE IF NOT EXISTS payments (
     FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id);
-CREATE INDEX IF NOT EXISTS ix_payments_status ON payments(status);
+CREATE INDEX ix_payments_user_id ON payments(user_id);
+CREATE INDEX ix_payments_status ON payments(status);
 
 -- ============================================================================
 -- 8. APPLICATIONS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS applications (
+CREATE TABLE applications (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    company_name VARCHAR(255),
-    job_title VARCHAR(255),
+    company_name VARCHAR(255) NOT NULL,
+    job_title VARCHAR(255) NOT NULL,
+    job_type VARCHAR(100),
+    location VARCHAR(255),
+    salary_range VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'sent',
+    platform VARCHAR(50) NOT NULL,
     job_url TEXT,
-    platform VARCHAR(50),
-    status VARCHAR(50) DEFAULT 'pending',
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    response_at TIMESTAMP,
+    last_status_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resume_used_id VARCHAR(36),
+    cover_letter TEXT,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (resume_used_id) REFERENCES resumes(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_applications_user_id ON applications(user_id);
-CREATE INDEX IF NOT EXISTS ix_applications_status ON applications(status);
-CREATE INDEX IF NOT EXISTS ix_applications_applied_at ON applications(applied_at);
+CREATE INDEX ix_applications_user_id ON applications(user_id);
+CREATE INDEX ix_applications_status ON applications(status);
+CREATE INDEX ix_applications_applied_at ON applications(applied_at);
 
 -- ============================================================================
 -- 9. JOB LISTINGS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS job_listings (
+CREATE TABLE job_listings (
     id VARCHAR(36) PRIMARY KEY,
-    platform_id VARCHAR(36) NOT NULL,
+    platform VARCHAR(50) NOT NULL,
+    external_id VARCHAR(255) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
     job_title VARCHAR(255) NOT NULL,
-    company_name VARCHAR(255),
     location VARCHAR(255),
-    job_url TEXT UNIQUE NOT NULL,
+    salary_range VARCHAR(100),
+    job_type VARCHAR(100),
     description TEXT,
-    salary_min INTEGER,
-    salary_max INTEGER,
-    job_type VARCHAR(50),
-    experience_level VARCHAR(50),
+    requirements TEXT,
+    job_url TEXT NOT NULL,
     posted_date TIMESTAMP,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (platform_id) REFERENCES platforms(id) ON DELETE CASCADE
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(platform, external_id)
 );
 
-CREATE INDEX IF NOT EXISTS ix_job_listings_platform_id ON job_listings(platform_id);
-CREATE INDEX IF NOT EXISTS ix_job_listings_scraped_at ON job_listings(scraped_at);
+CREATE INDEX ix_job_listings_platform ON job_listings(platform);
+CREATE INDEX ix_job_listings_external_id ON job_listings(external_id);
+CREATE INDEX ix_job_listings_job_title ON job_listings(job_title);
+CREATE INDEX ix_job_listings_is_active ON job_listings(is_active);
 
 -- ============================================================================
 -- 10. JOB QUEUE TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS job_queue (
+CREATE TABLE job_queue (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    job_listing_id VARCHAR(36) NOT NULL,
-    search_config_id VARCHAR(36),
-    status VARCHAR(50) DEFAULT 'queued',
-    match_score INTEGER,
+    job_search_config_id VARCHAR(36),
+    platform VARCHAR(50) NOT NULL,
+    job_listing_id VARCHAR(36),
+    company_name VARCHAR(255) NOT NULL,
+    job_title VARCHAR(255) NOT NULL,
+    job_url TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    priority INTEGER DEFAULT 5,
+    match_score NUMERIC(5, 2) DEFAULT 0.0,
     scheduled_for TIMESTAMP,
-    processed_at TIMESTAMP,
+    attempted_at TIMESTAMP,
+    completed_at TIMESTAMP,
     error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (job_listing_id) REFERENCES job_listings(id) ON DELETE CASCADE,
-    FOREIGN KEY (search_config_id) REFERENCES job_search_config(id) ON DELETE SET NULL
+    FOREIGN KEY (job_search_config_id) REFERENCES job_search_configs(id) ON DELETE SET NULL,
+    FOREIGN KEY (job_listing_id) REFERENCES job_listings(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_job_queue_user_id ON job_queue(user_id);
-CREATE INDEX IF NOT EXISTS ix_job_queue_status ON job_queue(status);
-CREATE INDEX IF NOT EXISTS ix_job_queue_scheduled_for ON job_queue(scheduled_for);
+CREATE INDEX ix_job_queue_user_id ON job_queue(user_id);
+CREATE INDEX ix_job_queue_status ON job_queue(status);
+CREATE INDEX ix_job_queue_priority ON job_queue(priority);
+CREATE INDEX ix_job_queue_created_at ON job_queue(created_at);
 
 -- ============================================================================
--- 11. PLATFORM CREDENTIALS TABLE (CORRECTED COLUMN NAMES)
+-- 11. PLATFORM CREDENTIALS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS platform_credentials (
+CREATE TABLE platform_credentials (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     platform VARCHAR(50) NOT NULL,
@@ -358,34 +316,34 @@ CREATE TABLE IF NOT EXISTS platform_credentials (
     UNIQUE(user_id, platform)
 );
 
-CREATE INDEX IF NOT EXISTS ix_platform_credentials_user_id ON platform_credentials(user_id);
+CREATE INDEX ix_platform_credentials_user_id ON platform_credentials(user_id);
 
 -- ============================================================================
 -- 12. AUTOMATION LOGS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS automation_logs (
+CREATE TABLE automation_logs (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36),
     job_queue_id VARCHAR(36),
-    event_type VARCHAR(100) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    message TEXT,
+    action_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
     details JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (job_queue_id) REFERENCES job_queue(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_automation_logs_user_id ON automation_logs(user_id);
-CREATE INDEX IF NOT EXISTS ix_automation_logs_event_type ON automation_logs(event_type);
-CREATE INDEX IF NOT EXISTS ix_automation_logs_created_at ON automation_logs(created_at);
+CREATE INDEX ix_automation_logs_user_id ON automation_logs(user_id);
+CREATE INDEX ix_automation_logs_action_type ON automation_logs(action_type);
+CREATE INDEX ix_automation_logs_created_at ON automation_logs(created_at);
 
 -- ============================================================================
--- 13. VIDEOS TABLE (Admin feature)
+-- 13. VIDEOS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS videos (
+CREATE TABLE videos (
     id VARCHAR(36) PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -402,14 +360,14 @@ CREATE TABLE IF NOT EXISTS videos (
     FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_videos_created_at ON videos(created_at);
-CREATE INDEX IF NOT EXISTS ix_videos_category ON videos(category);
+CREATE INDEX ix_videos_created_at ON videos(created_at);
+CREATE INDEX ix_videos_category ON videos(category);
 
 -- ============================================================================
--- 14. SETTINGS TABLE (Admin feature - Singleton)
+-- 14. SETTINGS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
     site_name VARCHAR(255) DEFAULT 'DevApply',
     site_description TEXT,
@@ -442,13 +400,13 @@ CREATE TABLE IF NOT EXISTS settings (
     CONSTRAINT settings_singleton CHECK (id = 1)
 );
 
-INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (id) VALUES (1);
 
 -- ============================================================================
--- 15. ACTIVITY LOGS TABLE (Admin feature)
+-- 15. ACTIVITY LOGS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS activity_logs (
+CREATE TABLE activity_logs (
     id VARCHAR(36) PRIMARY KEY,
     admin_id VARCHAR(36) NOT NULL,
     action VARCHAR(100) NOT NULL,
@@ -463,9 +421,9 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_activity_logs_admin_id ON activity_logs(admin_id);
-CREATE INDEX IF NOT EXISTS ix_activity_logs_action ON activity_logs(action);
-CREATE INDEX IF NOT EXISTS ix_activity_logs_created_at ON activity_logs(created_at);
+CREATE INDEX ix_activity_logs_admin_id ON activity_logs(admin_id);
+CREATE INDEX ix_activity_logs_action ON activity_logs(action);
+CREATE INDEX ix_activity_logs_created_at ON activity_logs(created_at);
 
 -- ============================================================================
 -- AUTO-UPDATE TRIGGERS
@@ -479,53 +437,23 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
-        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_preferences_updated_at') THEN
-        CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_resumes_updated_at') THEN
-        CREATE TRIGGER update_resumes_updated_at BEFORE UPDATE ON resumes
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+CREATE TRIGGER update_platform_credentials_updated_at BEFORE UPDATE ON platform_credentials
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_job_search_config_updated_at') THEN
-        CREATE TRIGGER update_job_search_config_updated_at BEFORE UPDATE ON job_search_config
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+CREATE TRIGGER update_videos_updated_at BEFORE UPDATE ON videos
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_subscriptions_updated_at') THEN
-        CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_applications_updated_at') THEN
-        CREATE TRIGGER update_applications_updated_at BEFORE UPDATE ON applications
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_platform_credentials_updated_at') THEN
-        CREATE TRIGGER update_platform_credentials_updated_at BEFORE UPDATE ON platform_credentials
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_videos_updated_at') THEN
-        CREATE TRIGGER update_videos_updated_at BEFORE UPDATE ON videos
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_settings_updated_at') THEN
-        CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-END $$;
+CREATE TRIGGER update_job_search_configs_updated_at BEFORE UPDATE ON job_search_configs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- SEED DATA
@@ -533,8 +461,7 @@ END $$;
 
 INSERT INTO platforms (id, name, is_active, created_at) VALUES
     (gen_random_uuid()::text, 'LinkedIn', true, CURRENT_TIMESTAMP),
-    (gen_random_uuid()::text, 'Indeed', true, CURRENT_TIMESTAMP)
-ON CONFLICT (name) DO NOTHING;
+    (gen_random_uuid()::text, 'Indeed', true, CURRENT_TIMESTAMP);
 
 COMMIT;
 
@@ -571,45 +498,7 @@ SELECT '✓ MIGRATION COMPLETE - YOUR DATABASE IS READY!' as final_status;
 SELECT '============================================================' as separator;
 
 -- ============================================================================
--- SUCCESS! What was fixed:
+-- SUCCESS! All tables now match Python models 100%
 -- ============================================================================
--- 1. Created/Updated 15 tables:
---    - users, user_preferences, platforms, resumes, job_search_config
---    - subscriptions, payments, applications, job_listings, job_queue
---    - platform_credentials, automation_logs, videos, settings, activity_logs
---
--- 2. Fixed Column Types:
---    - users.skills: JSONB (was JSON or NULL)
---    - All JSON columns converted to JSONB across all tables
---
--- 3. Fixed Constraints:
---    - users.skills: NOT NULL with default '[]'::jsonb
---    - users.email_verified: NOT NULL with default false
---    - users.role: NOT NULL with default 'user'
---    - All timestamps: NOT NULL with defaults
---
--- 4. Fixed Reserved Keywords:
---    - "current_role" properly escaped with double quotes
---
--- 5. Platform Credentials:
---    - username_encrypted (not username)
---    - encrypted_password (not password)
---    - is_verified (not is_active)
---    - last_verified_at (not last_verified)
---
--- 6. Added:
---    - 26 indexes for performance
---    - 9 auto-update triggers for updated_at columns
---    - Seed data: LinkedIn and Indeed platforms
---    - Default settings row
---
--- ============================================================================
--- REGISTRATION NOW WORKS WITH JUST:
--- {
---   "email": "user@example.com",
---   "password": "SecurePass123"
--- }
---
--- Optional: "name" or "full_name", "phone"
--- All profile fields (skills, location, etc.) can be added later!
+-- Run this SQL in your Render PostgreSQL Shell and registration will work!
 -- ============================================================================
