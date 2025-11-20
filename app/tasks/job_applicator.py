@@ -248,10 +248,10 @@ def apply_to_platform(platform, job_url, user, resume):
         if credential:
             # Add platform credentials to user profile
             if platform.lower() == 'linkedin':
-                user_profile['linkedin_email'] = credential.username
+                user_profile['linkedin_email'] = credential.get_username()
                 user_profile['linkedin_password'] = credential.get_password()
             elif platform.lower() == 'indeed':
-                user_profile['indeed_email'] = credential.username
+                user_profile['indeed_email'] = credential.get_username()
                 user_profile['indeed_password'] = credential.get_password()
         else:
             return False, f"No credentials found for {platform}. Please add credentials first."
