@@ -353,3 +353,138 @@ class LinkedInBot(JobApplicationBot):
         except Exception as e:
             print(f"[LinkedIn Bot] Error checking application status: {str(e)}")
             return False
+
+    def search_jobs(self, job_title, location=None, job_type=None, experience_level=None, remote_preference=None, keywords=None):
+        """
+        Search for jobs on LinkedIn
+
+        Args:
+            job_title (str): Job title to search for
+            location (str): Location preference
+            job_type (str): Job type (full-time, part-time, etc.)
+            experience_level (str): Experience level
+            remote_preference (str): Remote, hybrid, or onsite
+            keywords (list): Additional keywords
+
+        Returns:
+            list: List of job dictionaries with job_url, company_name, job_title, etc.
+        """
+        try:
+            print(f"[LinkedIn Bot] Searching for jobs: {job_title} in {location or 'Any location'}")
+
+            # Build search URL
+            search_query = job_title
+            if keywords:
+                search_query += ' ' + ' '.join(keywords)
+
+            # Navigate to jobs search page
+            search_url = f"https://www.linkedin.com/jobs/search/?keywords={search_query}"
+            if location:
+                search_url += f"&location={location}"
+            if job_type:
+                # Map job types to LinkedIn filters
+                job_type_mapping = {
+                    'full-time': 'F',
+                    'part-time': 'P',
+                    'contract': 'C',
+                    'temporary': 'T',
+                    'internship': 'I'
+                }
+                jt_code = job_type_mapping.get(job_type.lower())
+                if jt_code:
+                    search_url += f"&f_JT={jt_code}"
+
+            if remote_preference:
+                # Map remote preferences
+                if remote_preference.lower() == 'remote':
+                    search_url += "&f_WT=2"  # Remote only
+                elif remote_preference.lower() == 'hybrid':
+                    search_url += "&f_WT=1"  # Hybrid
+
+            # Add Easy Apply filter
+            search_url += "&f_AL=true"
+
+            print(f"[LinkedIn Bot] Navigating to: {search_url}")
+            self.driver.get(search_url)
+            time.sleep(5)
+
+            # Scroll to load more jobs
+            for _ in range(3):
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+
+            # Find all job listings
+            jobs = []
+            try:
+                job_cards = self.driver.find_elements(By.CSS_SELECTOR, '.jobs-search__results-list li, .scaffold-layout__list-container li')
+                print(f"[LinkedIn Bot] Found {len(job_cards)} job cards")
+
+                for card in job_cards[:20]:  # Limit to first 20 jobs
+                    try:
+                        # Get job link
+                        link_element = card.find_element(By.CSS_SELECTOR, 'a.job-card-list__title, a.job-card-container__link')
+                        job_url = link_element.get_attribute('href')
+
+                        # Get job title
+                        try:
+                            job_title_elem = card.find_element(By.CSS_SELECTOR, '.job-card-list__title, .job-card-container__primary-description')
+                            job_title_text = job_title_elem.text.strip()
+                        except:
+                            job_title_text = job_title
+
+                        # Get company name
+                        try:
+                            company_elem = card.find_element(By.CSS_SELECTOR, '.job-card-container__company-name, .job-card-container__primary-description')
+                            company_name = company_elem.text.strip()
+                        except:
+                            company_name = "Unknown Company"
+
+                        # Get location
+                        try:
+                            location_elem = card.find_element(By.CSS_SELECTOR, '.job-card-container__metadata-item, .job-card-container__metadata-wrapper')
+                            job_location = location_elem.text.strip()
+                        except:
+                            job_location = location
+
+                        # Check for Easy Apply
+                        try:
+                            card.find_element(By.XPATH, ".//*[contains(text(), 'Easy Apply')]")
+                            is_easy_apply = True
+                        except:
+                            is_easy_apply = False
+
+                        if is_easy_apply and job_url:
+                            jobs.append({
+                                'job_url': job_url.split('?')[0],  # Remove query params
+                                'job_title': job_title_text,
+                                'company_name': company_name,
+                                'location': job_location,
+                                'job_type': job_type,
+                                'salary_range': None
+                            })
+                    except Exception as e:
+                        print(f"[LinkedIn Bot] Error parsing job card: {str(e)}")
+                        continue
+
+                print(f"[LinkedIn Bot] Successfully parsed {len(jobs)} jobs with Easy Apply")
+
+            except Exception as e:
+                print(f"[LinkedIn Bot] Error finding job cards: {str(e)}")
+
+            return jobs
+
+        except Exception as e:
+            print(f"[LinkedIn Bot] Job search error: {str(e)}")
+            return []
+
+    def logout(self):
+        """Logout from LinkedIn"""
+        try:
+            print("[LinkedIn Bot] Logging out...")
+            # LinkedIn doesn't require explicit logout for bot sessions
+            # Just clean up the driver
+            if self.driver:
+                self.driver.quit()
+            print("[LinkedIn Bot] Logout complete")
+        except Exception as e:
+            print(f"[LinkedIn Bot] Logout error: {str(e)}")
