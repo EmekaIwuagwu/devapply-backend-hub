@@ -246,6 +246,10 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
         if platform.lower() == 'linkedin':
             user_profile['linkedin_email'] = credential.get_username()
             user_profile['linkedin_password'] = credential.get_password()
+
+            log_event(user.id, 'credentials_loaded', 'info',
+                     f'LinkedIn credentials loaded for user')
+
             bot = LinkedInBot(user_profile=user_profile, resume_base64=resume.file_base64)
         elif platform.lower() == 'indeed':
             user_profile['indeed_email'] = credential.get_username()
@@ -254,6 +258,17 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
         else:
             log_event(user.id, 'platform_unsupported', 'failed',
                      f'No automation bot available for {platform}')
+            return 0
+
+        # Initialize browser BEFORE login
+        log_event(user.id, 'browser_init', 'info',
+                 f'Initializing browser for {platform}...')
+
+        try:
+            bot.initialize_browser()
+        except Exception as e:
+            log_event(user.id, 'browser_init', 'failed',
+                     f'Failed to initialize browser: {str(e)}')
             return 0
 
         # Login to platform
@@ -382,7 +397,10 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
         # Logout
         log_event(user.id, 'platform_logout', 'info',
                  f'🔓 Logging out of {platform}')
-        bot.logout()
+        try:
+            bot.logout()
+        except:
+            pass  # Logout errors are not critical
 
         log_event(user.id, 'platform_session_complete', 'success',
                  f'✅ {platform} session complete: Applied to {applied_count}/{jobs_count} job(s)')
@@ -393,6 +411,14 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
         log_event(user.id, 'platform_error', 'failed',
                  f"❌ Error in {platform} automation: {str(e)}")
         return applied_count
+
+    finally:
+        # Always cleanup browser resources
+        try:
+            if 'bot' in locals() and bot:
+                bot.cleanup()
+        except:
+            pass  # Cleanup errors are not critical
 
 
 def log_event(user_id, action_type, status, message, details=None):
