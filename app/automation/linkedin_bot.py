@@ -27,6 +27,9 @@ class LinkedInBot(JobApplicationBot):
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
 
+        # Set Chrome binary location (required on some systems)
+        options.binary_location = '/usr/bin/google-chrome-stable'
+
         # User agent
         options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
 
