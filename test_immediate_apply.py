@@ -31,7 +31,7 @@ def main():
             print("❌ No job search config found for user")
             return
 
-        print(f"✅ Found job search config: {config.job_title} in {config.location}")
+        print(f"✅ Found job search config: {config.primary_job_title} in {config.primary_location}")
         print(f"   Platforms: {config.platforms}")
 
         # Trigger the immediate application
