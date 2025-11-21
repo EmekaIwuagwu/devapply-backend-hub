@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app import create_app, db
 from app.models.user import User
 from app.models.job_search_config import JobSearchConfig
-from app.tasks.immediate_applicator import trigger_immediate_application
+from app.tasks.immediate_applicator import start_immediate_applications
 
 def main():
     app = create_app()
@@ -39,7 +39,7 @@ def main():
         print("   This will initialize browser, login, and search for jobs")
         print("   Check logs/automation.log for detailed progress\n")
 
-        result = trigger_immediate_application.delay(user_id=user.id, config_id=config.id)
+        result = start_immediate_applications.delay(user_id=user.id, config_id=config.id)
 
         print(f"✅ Task triggered successfully!")
         print(f"   Task ID: {result.id}")
