@@ -44,9 +44,14 @@ class LinkedInBot(JobApplicationBot):
         options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36')
 
         self.driver = webdriver.Chrome(options=options)
+
+        # Set page load timeout to prevent hanging
+        self.driver.set_page_load_timeout(30)
+
         self.driver.implicitly_wait(5)  # Reduced from 10 to 5
         self.wait = WebDriverWait(self.driver, 20)  # Increased from 15 to 20
 
+        print("[LinkedIn Bot] Browser initialized successfully")
         return self.driver
 
     def login(self):
@@ -58,8 +63,16 @@ class LinkedInBot(JobApplicationBot):
             print("[LinkedIn Bot] Logging in...")
 
             # Navigate to login page
-            self.driver.get('https://www.linkedin.com/login')
-            print(f"[LinkedIn Bot] Navigated to login page, current URL: {self.driver.current_url}")
+            print("[LinkedIn Bot] Attempting to load https://www.linkedin.com/login")
+            try:
+                self.driver.get('https://www.linkedin.com/login')
+                print(f"[LinkedIn Bot] ✅ Page loaded! Current URL: {self.driver.current_url}")
+                print(f"[LinkedIn Bot] Page title: {self.driver.title}")
+            except Exception as e:
+                print(f"[LinkedIn Bot] ❌ Failed to load login page: {str(e)}")
+                print(f"[LinkedIn Bot] This usually means LinkedIn is blocking headless browsers")
+                return False
+
             time.sleep(3)
 
             # Check for CAPTCHA or security challenge
