@@ -29,7 +29,7 @@ class LinkedInBot(JobApplicationBot):
         options.add_argument('--disable-software-rasterizer')
         options.add_argument('--disable-extensions')
         options.add_argument('--disable-setuid-sandbox')
-        options.add_argument('--single-process')
+        # Removed --single-process as it can cause rendering issues
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--start-maximized')
         options.add_argument('--remote-debugging-port=9222')
@@ -44,8 +44,8 @@ class LinkedInBot(JobApplicationBot):
         options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36')
 
         self.driver = webdriver.Chrome(options=options)
-        self.driver.implicitly_wait(10)
-        self.wait = WebDriverWait(self.driver, 15)
+        self.driver.implicitly_wait(5)  # Reduced from 10 to 5
+        self.wait = WebDriverWait(self.driver, 20)  # Increased from 15 to 20
 
         return self.driver
 
@@ -59,7 +59,15 @@ class LinkedInBot(JobApplicationBot):
 
             # Navigate to login page
             self.driver.get('https://www.linkedin.com/login')
-            time.sleep(2)
+            print(f"[LinkedIn Bot] Navigated to login page, current URL: {self.driver.current_url}")
+            time.sleep(3)
+
+            # Check for CAPTCHA or security challenge
+            page_source = self.driver.page_source.lower()
+            if 'captcha' in page_source or 'security' in page_source or 'verify' in page_source:
+                print("[LinkedIn Bot] ⚠️  Security challenge or CAPTCHA detected!")
+                print(f"[LinkedIn Bot] Page title: {self.driver.title}")
+                return False
 
             # Get credentials from user profile
             username = self.user.get('linkedin_email')
@@ -69,35 +77,64 @@ class LinkedInBot(JobApplicationBot):
                 print("[LinkedIn Bot] No credentials found")
                 return False
 
-            # Enter username
-            username_field = self.wait.until(
-                EC.presence_of_element_located((By.ID, 'username'))
-            )
-            username_field.clear()
-            username_field.send_keys(username)
+            print(f"[LinkedIn Bot] Looking for username field...")
+            # Enter username with shorter timeout
+            try:
+                username_field = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, 'username'))
+                )
+                username_field.clear()
+                time.sleep(0.5)
+                username_field.send_keys(username)
+                print("[LinkedIn Bot] Username entered")
+            except TimeoutException:
+                print(f"[LinkedIn Bot] ❌ Username field not found. Page title: {self.driver.title}")
+                print(f"[LinkedIn Bot] Current URL: {self.driver.current_url}")
+                return False
 
             # Enter password
-            password_field = self.driver.find_element(By.ID, 'password')
-            password_field.clear()
-            password_field.send_keys(password)
+            try:
+                password_field = self.driver.find_element(By.ID, 'password')
+                password_field.clear()
+                time.sleep(0.5)
+                password_field.send_keys(password)
+                print("[LinkedIn Bot] Password entered")
+            except NoSuchElementException:
+                print("[LinkedIn Bot] ❌ Password field not found")
+                return False
 
             # Click login button
-            login_button = self.driver.find_element(By.XPATH, '//button[@type="submit"]')
-            login_button.click()
+            try:
+                login_button = self.driver.find_element(By.XPATH, '//button[@type="submit"]')
+                login_button.click()
+                print("[LinkedIn Bot] Login button clicked")
+            except NoSuchElementException:
+                print("[LinkedIn Bot] ❌ Login button not found")
+                return False
 
             # Wait for redirect to feed
-            time.sleep(5)
+            print("[LinkedIn Bot] Waiting for redirect after login...")
+            time.sleep(8)
 
             # Check if login successful
-            if '/feed' in self.driver.current_url or '/mynetwork' in self.driver.current_url:
-                print("[LinkedIn Bot] Login successful")
+            current_url = self.driver.current_url
+            print(f"[LinkedIn Bot] After login, current URL: {current_url}")
+
+            if '/feed' in current_url or '/mynetwork' in current_url or 'linkedin.com/in/' in current_url:
+                print("[LinkedIn Bot] ✅ Login successful")
                 return True
+            elif '/checkpoint/challenge' in current_url or '/challenge' in current_url:
+                print("[LinkedIn Bot] ❌ LinkedIn is showing a security challenge - manual intervention required")
+                return False
             else:
-                print("[LinkedIn Bot] Login failed - unexpected URL")
+                print(f"[LinkedIn Bot] ❌ Login failed - unexpected URL: {current_url}")
                 return False
 
         except Exception as e:
             print(f"[LinkedIn Bot] Login error: {str(e)}")
+            if self.driver:
+                print(f"[LinkedIn Bot] Current URL at error: {self.driver.current_url}")
+                print(f"[LinkedIn Bot] Page title at error: {self.driver.title}")
             return False
 
     def navigate_to_job(self, job_url):
