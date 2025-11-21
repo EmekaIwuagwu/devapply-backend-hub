@@ -22,6 +22,10 @@ class IndeedBot(JobApplicationBot):
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+
+        # Set Chrome binary location (required on some systems)
+        options.binary_location = '/usr/bin/google-chrome-stable'
+
         options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
 
         self.driver = webdriver.Chrome(options=options)
