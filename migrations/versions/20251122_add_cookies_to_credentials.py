@@ -1,7 +1,7 @@
 """Add cookies_encrypted field to platform_credentials
 
 Revision ID: 20251122_add_cookies
-Revises: 20251120_130652_fix_platform_credentials_columns
+Revises: 20251120_130652
 Create Date: 2025-11-22 06:45:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20251122_add_cookies'
-down_revision = '20251120_130652_fix_platform_credentials_columns'
+down_revision = '20251120_130652'
 branch_labels = None
 depends_on = None
 
