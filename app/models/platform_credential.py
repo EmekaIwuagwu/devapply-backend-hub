@@ -1,5 +1,6 @@
 import uuid
 import os
+import json
 from datetime import datetime
 from cryptography.fernet import Fernet
 from app import db
@@ -14,6 +15,7 @@ class PlatformCredential(db.Model):
     platform = db.Column(db.String(50), nullable=False, index=True)  # 'linkedin', 'indeed', etc.
     username_encrypted = db.Column(db.Text)  # Encrypted username/email
     encrypted_password = db.Column(db.Text, nullable=False)  # Encrypted password (matches DB column name)
+    cookies_encrypted = db.Column(db.Text)  # Encrypted session cookies (JSON)
     is_verified = db.Column(db.Boolean, default=False)  # Match DB column name
     last_verified_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -60,6 +62,32 @@ class PlatformCredential(db.Model):
         """Decrypt and return password"""
         cipher = self.get_cipher()
         return cipher.decrypt(self.encrypted_password.encode()).decode()
+
+    def set_cookies(self, cookies_dict):
+        """
+        Encrypt and store session cookies
+        Args:
+            cookies_dict (dict): Dictionary of cookie name/value pairs
+        """
+        cipher = self.get_cipher()
+        cookies_json = json.dumps(cookies_dict)
+        self.cookies_encrypted = cipher.encrypt(cookies_json.encode()).decode()
+
+    def get_cookies(self):
+        """
+        Decrypt and return cookies as dictionary
+        Returns:
+            dict: Cookie name/value pairs or None
+        """
+        if not self.cookies_encrypted:
+            return None
+        cipher = self.get_cipher()
+        cookies_json = cipher.decrypt(self.cookies_encrypted.encode()).decode()
+        return json.loads(cookies_json)
+
+    def has_cookies(self):
+        """Check if cookies are stored"""
+        return bool(self.cookies_encrypted)
 
     def verify_credentials(self):
         """

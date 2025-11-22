@@ -247,13 +247,26 @@ def search_and_apply_immediate(user, config, search_config, platform, credential
             user_profile['linkedin_email'] = credential.get_username()
             user_profile['linkedin_password'] = credential.get_password()
 
-            log_event(user.id, 'credentials_loaded', 'info',
-                     f'LinkedIn credentials loaded for user')
+            # Add cookies if available
+            if credential.has_cookies():
+                user_profile['linkedin_cookies'] = credential.get_cookies()
+                log_event(user.id, 'cookies_loaded', 'info',
+                         f'LinkedIn session cookies loaded for user')
+            else:
+                log_event(user.id, 'credentials_loaded', 'info',
+                         f'LinkedIn credentials loaded for user (no cookies)')
 
             bot = LinkedInBot(user_profile=user_profile, resume_base64=resume.file_base64)
         elif platform.lower() == 'indeed':
             user_profile['indeed_email'] = credential.get_username()
             user_profile['indeed_password'] = credential.get_password()
+
+            # Add cookies if available
+            if credential.has_cookies():
+                user_profile['indeed_cookies'] = credential.get_cookies()
+                log_event(user.id, 'cookies_loaded', 'info',
+                         f'Indeed session cookies loaded for user')
+
             bot = IndeedBot(user_profile=user_profile, resume_base64=resume.file_base64)
         else:
             log_event(user.id, 'platform_unsupported', 'failed',

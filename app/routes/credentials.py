@@ -133,3 +133,88 @@ def verify_credential(platform):
     except Exception as e:
         db.session.rollback()
         return error_response('VERIFICATION_FAILED', str(e), status_code=500)
+
+
+@credentials_bp.route('/<platform>/cookies', methods=['POST'])
+@jwt_required()
+def save_cookies(platform):
+    """
+    Save session cookies for a platform
+    This allows cookie-based authentication without traditional login
+
+    Request body:
+    {
+        "cookies": {
+            "li_at": "cookie_value",
+            "JSESSIONID": "cookie_value",
+            ...
+        }
+    }
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        cookies = data.get('cookies')
+        if not cookies or not isinstance(cookies, dict):
+            return error_response('VALIDATION_ERROR', 'Cookies must be a dictionary', status_code=400)
+
+        # Get or create credential for this platform
+        credential = PlatformCredential.query.filter_by(
+            user_id=user_id,
+            platform=platform
+        ).first()
+
+        if not credential:
+            # Create new credential with empty password (cookies only)
+            credential = PlatformCredential(
+                user_id=user_id,
+                platform=platform
+            )
+            credential.set_password('cookie-based-auth')  # Placeholder since password is required
+            db.session.add(credential)
+
+        # Save cookies
+        credential.set_cookies(cookies)
+        credential.is_verified = True  # Assume cookies are valid
+        db.session.commit()
+
+        return create_response(
+            data={
+                'credential': {
+                    'platform': credential.platform,
+                    'has_cookies': True,
+                    'cookie_count': len(cookies)
+                }
+            },
+            message=f'{platform} session cookies saved successfully. You can now use automated job applications!'
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response('SAVE_FAILED', str(e), status_code=500)
+
+
+@credentials_bp.route('/<platform>/cookies', methods=['DELETE'])
+@jwt_required()
+def delete_cookies(platform):
+    """Delete saved session cookies for a platform"""
+    try:
+        user_id = get_jwt_identity()
+
+        credential = PlatformCredential.query.filter_by(
+            user_id=user_id,
+            platform=platform
+        ).first()
+
+        if not credential:
+            return error_response('NOT_FOUND', 'Credential not found', status_code=404)
+
+        credential.cookies_encrypted = None
+        db.session.commit()
+
+        return create_response(message=f'{platform} cookies deleted successfully')
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response('DELETE_FAILED', str(e), status_code=500)
