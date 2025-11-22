@@ -52,11 +52,81 @@ class LinkedInBot(JobApplicationBot):
     def login(self):
         """
         Login to LinkedIn
-        Requires credentials to be passed in user profile
+        Uses cookies if available, falls back to username/password
         """
         try:
             print("[LinkedIn Bot] Logging in...")
 
+            # Check if we have cookies to use
+            cookies = self.user.get('linkedin_cookies')
+            if cookies:
+                print("[LinkedIn Bot] 🍪 Using saved session cookies...")
+                return self._login_with_cookies(cookies)
+
+            # Fall back to traditional login
+            print("[LinkedIn Bot] Using username/password login...")
+            return self._login_with_credentials()
+
+        except Exception as e:
+            print(f"[LinkedIn Bot] Login error: {str(e)}")
+            return False
+
+    def _login_with_cookies(self, cookies):
+        """
+        Login using saved session cookies
+        Args:
+            cookies (dict): Dictionary of cookie name/value pairs
+        Returns:
+            bool: True if successful
+        """
+        try:
+            # First, navigate to LinkedIn homepage
+            print("[LinkedIn Bot] Loading LinkedIn homepage...")
+            self.driver.get('https://www.linkedin.com')
+            time.sleep(2)
+
+            # Add each cookie to the browser
+            print(f"[LinkedIn Bot] Adding {len(cookies)} cookies to browser...")
+            for name, value in cookies.items():
+                try:
+                    self.driver.add_cookie({
+                        'name': name,
+                        'value': value,
+                        'domain': '.linkedin.com'
+                    })
+                except Exception as e:
+                    print(f"[LinkedIn Bot] Warning: Could not add cookie {name}: {str(e)}")
+
+            # Navigate to feed to verify login
+            print("[LinkedIn Bot] Verifying cookie-based login...")
+            self.driver.get('https://www.linkedin.com/feed/')
+            time.sleep(3)
+
+            current_url = self.driver.current_url
+            print(f"[LinkedIn Bot] Current URL: {current_url}")
+
+            # Check if we're logged in
+            if '/feed' in current_url or '/mynetwork' in current_url:
+                print("[LinkedIn Bot] ✅ Cookie-based login successful!")
+                return True
+            elif '/login' in current_url or '/checkpoint' in current_url:
+                print("[LinkedIn Bot] ❌ Cookies expired or invalid. Need to re-authenticate.")
+                return False
+            else:
+                print(f"[LinkedIn Bot] ⚠️  Unexpected URL after cookie login: {current_url}")
+                return False
+
+        except Exception as e:
+            print(f"[LinkedIn Bot] Cookie login error: {str(e)}")
+            return False
+
+    def _login_with_credentials(self):
+        """
+        Traditional login with username/password
+        Returns:
+            bool: True if successful
+        """
+        try:
             # Navigate to login page
             print("[LinkedIn Bot] Attempting to load https://www.linkedin.com/login")
             try:
