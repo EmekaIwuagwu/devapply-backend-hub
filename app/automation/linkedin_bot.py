@@ -3,7 +3,7 @@ LinkedIn Easy Apply automation bot
 """
 import time
 import os
-from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,40 +18,35 @@ class LinkedInBot(JobApplicationBot):
     """
 
     def initialize_browser(self):
-        """Initialize Selenium WebDriver"""
-        options = webdriver.ChromeOptions()
+        """Initialize Selenium WebDriver with undetected-chromedriver"""
+        options = uc.ChromeOptions()
 
-        # Enhanced headless configuration for server environments
-        options.add_argument('--headless=new')  # Use new headless mode
+        # Headless mode configuration
+        options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument('--disable-software-rasterizer')
-        options.add_argument('--disable-extensions')
-        options.add_argument('--disable-setuid-sandbox')
-        # Removed --single-process as it can cause rendering issues
         options.add_argument('--window-size=1920,1080')
-        options.add_argument('--start-maximized')
-        options.add_argument('--remote-debugging-port=9222')
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
 
-        # Set Chrome binary location (required on some systems)
+        # Set Chrome binary location
         options.binary_location = '/usr/bin/google-chrome-stable'
 
-        # User agent
-        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36')
-
-        self.driver = webdriver.Chrome(options=options)
+        # Initialize undetected Chrome
+        # version_main should match your Chrome version (142)
+        self.driver = uc.Chrome(
+            options=options,
+            version_main=142,
+            driver_executable_path=None,  # Auto-download matching chromedriver
+            use_subprocess=False
+        )
 
         # Set page load timeout to prevent hanging
-        self.driver.set_page_load_timeout(30)
+        self.driver.set_page_load_timeout(45)
 
-        self.driver.implicitly_wait(5)  # Reduced from 10 to 5
-        self.wait = WebDriverWait(self.driver, 20)  # Increased from 15 to 20
+        self.driver.implicitly_wait(5)
+        self.wait = WebDriverWait(self.driver, 20)
 
-        print("[LinkedIn Bot] Browser initialized successfully")
+        print("[LinkedIn Bot] ✅ Undetected browser initialized successfully")
         return self.driver
 
     def login(self):
