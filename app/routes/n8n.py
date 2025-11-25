@@ -111,6 +111,97 @@ def get_user_data():
         )
 
 
+@n8n_bp.route('/all-users', methods=['GET'])
+def get_all_users():
+    """
+    Get all registered users' data for n8n workflows
+
+    Returns:
+        - Array of all users with their complete profiles
+        - Resume data (base64) for each user
+        - Platform credentials status
+        - Skills and preferences
+
+    Example:
+        GET /api/n8n/all-users
+        GET /api/n8n/all-users?has_resume=true  (filter users with resumes only)
+    """
+    try:
+        # Optional filter: only users with resumes
+        has_resume_filter = request.args.get('has_resume', '').lower() == 'true'
+
+        # Get all users
+        users = User.query.all()
+
+        users_data = []
+
+        for user in users:
+            # Get default resume (or first resume if no default)
+            resume = Resume.query.filter_by(user_id=user.id, is_default=True).first()
+            if not resume:
+                resume = Resume.query.filter_by(user_id=user.id).order_by(Resume.uploaded_at.desc()).first()
+
+            # Skip users without resumes if filter is enabled
+            if has_resume_filter and not resume:
+                continue
+
+            # Get LinkedIn credentials if available
+            linkedin_cred = PlatformCredential.query.filter_by(
+                user_id=user.id,
+                platform='linkedin'
+            ).first()
+
+            # Build user data
+            user_data = {
+                'user_id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+                'phone': user.phone,
+                'location': user.location,
+                'linkedin_url': user.linkedin_url,
+                'github_url': user.github_url,
+                'portfolio_url': user.portfolio_url,
+                'current_role': user.current_role,
+                'years_experience': user.years_experience,
+                'preferred_job_type': user.preferred_job_type,
+                'salary_expectations': user.salary_expectations,
+                'professional_bio': user.professional_bio,
+                'skills': user.skills or [],
+                'linkedin_email': linkedin_cred.get_username() if linkedin_cred else None,
+                'has_linkedin_credentials': bool(linkedin_cred),
+                'has_linkedin_cookies': linkedin_cred.has_cookies() if linkedin_cred else False
+            }
+
+            # Add resume data if available
+            if resume:
+                user_data['resume'] = {
+                    'filename': resume.filename,
+                    'file_base64': resume.file_base64,
+                    'file_type': resume.file_type,
+                    'file_size': resume.file_size,
+                    'job_type_tag': resume.job_type_tag
+                }
+            else:
+                user_data['resume'] = None
+
+            users_data.append(user_data)
+
+        return create_response(
+            data={
+                'users': users_data,
+                'total_count': len(users_data)
+            },
+            message=f'Retrieved {len(users_data)} user(s) successfully'
+        )
+
+    except Exception as e:
+        return error_response(
+            'FETCH_ERROR',
+            str(e),
+            status_code=500
+        )
+
+
 @n8n_bp.route('/save-application', methods=['POST'])
 def save_application():
     """
