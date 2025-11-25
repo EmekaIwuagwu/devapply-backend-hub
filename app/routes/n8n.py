@@ -285,8 +285,9 @@ def save_application():
                 'application': application.to_dict(),
                 'email_sent': email_sent
             },
-            message='Application saved successfully'
-        ), 201
+            message='Application saved successfully',
+            status_code=201
+        )
 
     except Exception as e:
         db.session.rollback()
