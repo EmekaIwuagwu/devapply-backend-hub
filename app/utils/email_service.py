@@ -52,10 +52,16 @@ class EmailService:
                 print(f"[Email] SMTP credentials not configured. Would send to {to}: {subject}")
                 return True  # Simulate success in dev
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_pass)
-                server.send_message(msg)
+            # Use SMTP_SSL for port 465, regular SMTP with STARTTLS for port 587
+            if self.smtp_port == 465:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10) as server:
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
+                    server.starttls()
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.send_message(msg)
 
             print(f"[Email] Sent to {to}: {subject}")
             return True
