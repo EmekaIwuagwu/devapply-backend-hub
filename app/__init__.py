@@ -237,6 +237,7 @@ def register_blueprints(app):
     from app.routes.credentials import credentials_bp
     from app.routes.preferences import preferences_bp
     from app.routes.admin import admin_bp
+    from app.routes.n8n import n8n_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/resumes')
@@ -248,6 +249,7 @@ def register_blueprints(app):
     app.register_blueprint(credentials_bp, url_prefix='/api/credentials')
     app.register_blueprint(preferences_bp, url_prefix='/api/preferences')
     app.register_blueprint(admin_bp)  # Already has /api/admin prefix in blueprint definition
+    app.register_blueprint(n8n_bp, url_prefix='/api/n8n')  # N8N integration endpoints (no JWT required)
 
 
 def register_error_handlers(app):
