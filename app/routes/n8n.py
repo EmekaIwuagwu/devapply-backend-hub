@@ -213,7 +213,7 @@ def save_application():
                 'company_name': company_name,
                 'job_title': job_title,
                 'platform': platform,
-                'location': location or 'Not specified',
+                'location': data.get('location') or 'Not specified',
                 'status': application.status
             }
 
@@ -253,7 +253,7 @@ def save_application():
                                 <span class="label">Platform:</span> {platform}
                             </div>
                             <div class="detail-row">
-                                <span class="label">Location:</span> {location or 'Not specified'}
+                                <span class="label">Location:</span> {data.get('location') or 'Not specified'}
                             </div>
                             <div class="detail-row">
                                 <span class="label">Status:</span> {application.status}
