@@ -5,7 +5,7 @@ echo "Starting DevApply Celery Worker..."
 
 # Wait for Redis to be ready
 echo "Waiting for Redis..."
-python << END
+python3 << END
 import time
 import redis
 import os

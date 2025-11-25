@@ -5,7 +5,7 @@ echo "Starting DevApply Web Server..."
 
 # Wait for database to be ready
 echo "Waiting for database..."
-python << END
+python3 << END
 import time
 import psycopg2
 import os
@@ -38,14 +38,14 @@ END
 
 # Run database migrations using Python script
 echo "Running database migrations..."
-python scripts/run_migrations.py || {
+python3 scripts/run_migrations.py || {
     echo "Python migration script failed, trying direct flask command..."
-    flask db upgrade || echo "Migrations failed or already up to date"
+    python3 -m flask db upgrade || echo "Migrations failed or already up to date"
 }
 
 # Seed platforms if needed
 echo "Seeding platforms..."
-flask seed_platforms || echo "Platforms already seeded"
+python3 -m flask seed_platforms || echo "Platforms already seeded"
 
 # Start Gunicorn
 echo "Starting Gunicorn server..."
