@@ -52,7 +52,7 @@ class EmailService:
                 print(f"[Email] SMTP credentials not configured. Would send to {to}: {subject}")
                 return True  # Simulate success in dev
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
                 server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 server.send_message(msg)
